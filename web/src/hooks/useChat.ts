@@ -36,7 +36,7 @@ export function useChat() {
     setStreamText("") 
 
     try {
-      const res = await fetch("http://localhost:3001/api/v0/ai-chat", {
+      const res = await fetch("http://10.0.2.16:3001/api/v0/ai-chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

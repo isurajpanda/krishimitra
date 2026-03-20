@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const SERVER_WS_URL = "ws://localhost:3001/api/v0/voice";
+const SERVER_WS_URL = "ws://10.0.2.16:3001/api/v0/voice";
 // Number of chunks to accumulate before starting playback (gapless warmup)
 const PLAYBACK_PREBUFFER_COUNT = 10;
 // Startup scheduling offset in seconds — gives AudioContext time to warm up
@@ -260,6 +260,15 @@ export function useVoiceChat() {
     prebufferStartedRef.current = false;
 
     try {
+      // Check for Secure Context (Required for getUserMedia on mobile/modern browsers)
+      if (!window.isSecureContext) {
+        throw new Error("Microphone access requires a Secure Context (HTTPS or localhost). If you are testing on mobile using an IP address, please use an HTTPS tunnel or localhost port forwarding.");
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Your browser does not support microphone access or it is blocked by security policy.");
+      }
+
       console.log("[useVoiceChat] Requesting mic access...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log("[useVoiceChat] Mic access granted");
@@ -326,7 +335,7 @@ export function useVoiceChat() {
       gainNode.connect(audioCtx.destination);
     } catch (e: any) {
       console.error("[STT] Microphone error:", e);
-      alert("Microphone access denied or error occurred.");
+      alert(`Microphone Error: ${e.message || "Access denied or error occurred."}`);
       setIsListening(false);
     }
   }, [getWS, setIsListening]);

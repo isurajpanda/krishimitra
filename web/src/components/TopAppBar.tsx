@@ -13,6 +13,8 @@ interface TopAppBarProps {
 
 export function TopAppBar({ title, subtitle, actions, leftAction, className = "", showProfilePic = true }: TopAppBarProps) {
   const { toggleTheme, isDark } = useTheme();
+  const userName = localStorage.getItem("userName") || "Farmer";
+  const userLocation = localStorage.getItem("userLocation") || "Location not set";
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 p-4 max-w-5xl mx-auto w-full pointer-events-none transition-all duration-300 ${className}`}>
@@ -28,13 +30,13 @@ export function TopAppBar({ title, subtitle, actions, leftAction, className = ""
           )}
           <div className="flex-1 min-w-0">
             <h1 className="font-headline font-bold text-sm tracking-wide text-on-surface truncate">
-              {title || <><span className="text-on-surface">Namaste, Raju</span> <span className="text-primary">🌿</span></>}
+              {title || <><span className="text-on-surface">Namaste, {userName}</span> <span className="text-primary">🌿</span></>}
             </h1>
             <div className="flex items-center gap-1 text-[10px] sm:text-xs text-on-surface-variant font-medium mt-0.5 truncate">
               {subtitle || (
                 <>
                   <MapPin className="w-3.5 h-3.5" />
-                  Nashik, MH
+                  {userLocation}
                 </>
               )}
             </div>

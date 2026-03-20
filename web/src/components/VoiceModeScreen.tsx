@@ -36,9 +36,8 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
     stopVoiceRecording
   } = useVoiceChat()
 
-  // Auto-start voice recording when the screen opens
+  // Cleanup on unmount
   useEffect(() => {
-    startVoiceRecording()
     return () => {
       stopVoiceRecording()
     }

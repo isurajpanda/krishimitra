@@ -1,218 +1,265 @@
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTheme } from "@/hooks/useTheme"
-import { Sun, Moon, Leaf } from "lucide-react"
+import { Sun, Moon, Leaf, Mail, Lock, Eye, EyeOff, Loader2, User } from "lucide-react"
 
 export function AuthPage() {
-  const [activeLang, setActiveLang] = useState("English")
+  const [isSignup, setIsSignup] = useState(false)
   const { toggleTheme, isDark } = useTheme()
-  const [otpVisible, setOtpVisible] = useState(false)
-  const languages = ["हिंदी", "मराठी", "ਪੰਜਾਬी", "தமிழ்", "English"]
-
   const navigate = useNavigate()
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [isVerifying, setIsVerifying] = useState(false)
   
-  const handleLogin = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) return
-    setIsVerifying(true)
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const validate = () => {
+    if (isSignup && !name.trim()) {
+      setError("Name is required")
+      return false
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address")
+      return false
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters")
+      return false
+    }
+    return true
+  }
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validate()) return
+    
+    setIsLoading(true)
+    setError("")
+
+    const endpoint = isSignup ? "/auth/signup" : "/auth/login"
     try {
-      const res = await fetch("http://localhost:3001/api/v0/auth/login", {
+      const res = await fetch(`http://10.0.2.16:3001/api/v0${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ name: isSignup ? name : undefined, email, password }),
       })
+      
       const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Authentication failed")
+      }
+
       if (data.success) {
         localStorage.setItem("userId", data.user.id)
-        localStorage.setItem("userPhone", data.user.phone_number)
-        navigate("/")
+        localStorage.setItem("userEmail", data.user.email)
+        localStorage.setItem("userName", data.user.name)
+        
+        if (isSignup || !data.user.onboarded) {
+          navigate("/onboarding")
+        } else {
+          navigate("/")
+        }
       }
-    } catch (err) {
-      console.error("Login failed:", err)
+    } catch (err: any) {
+      setError(err.message)
     } finally {
-      setIsVerifying(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="bg-transparent text-on-surface font-body overflow-hidden selection:bg-primary selection:text-on-primary antialiased min-h-[100dvh]">
-      {/* Hero Background Layer (Decorations only) */}
+    <div className="bg-transparent text-on-surface font-body overflow-hidden selection:bg-primary selection:text-on-primary antialiased min-h-[100dvh] flex flex-col">
+      {/* Hero Background Layer */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="firefly top-1/4 left-1/4" style={{ opacity: 0.4 }}></div>
-        <div className="firefly top-1/3 right-1/4" style={{ opacity: 0.5 }}></div>
-        <div className="firefly top-1/2 left-1/2" style={{ opacity: 0.3 }}></div>
-        <div className="firefly bottom-1/3 left-10" style={{ opacity: 0.4 }}></div>
-        <div className="firefly bottom-1/4 right-20" style={{ opacity: 0.2 }}></div>
+        <div className="firefly top-1/4 left-1/4 opacity-40"></div>
+        <div className="firefly top-1/3 right-1/4 opacity-50"></div>
+        <div className="firefly top-1/2 left-1/2 opacity-30"></div>
       </div>
 
-      {/* Top Utility Area */}
-      <header className="relative z-20 flex flex-col gap-4 p-6 max-w-lg mx-auto">
-        <div className="flex justify-between items-center">
-          <div className="w-10"></div>
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleTheme}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container text-on-surface border border-outline/50 shadow-lg hover:bg-primary/10 hover:border-primary/30 transition-all"
-          >
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-        </div>
-
-        {/* Language Selector */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2">
-          {languages.map((lang) => (
-            <button 
-              key={lang}
-              onClick={() => setActiveLang(lang)}
-              className={`flex-none px-5 py-2 glass-panel rounded-full text-sm font-medium transition-all ${
-                activeLang === lang 
-                  ? "border-primary/40 bg-primary/10 text-primary glow-aura" 
-                  : "text-on-surface-variant hover:bg-white/5"
-              }`}
-            >
-              {lang}
-            </button>
-          ))}
-        </div>
+      <header className="relative z-20 flex justify-end p-6 max-w-lg mx-auto w-full">
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container text-on-surface border border-outline/50 shadow-lg hover:bg-primary/10 transition-all"
+        >
+          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
       </header>
 
-      {/* Main Branding Content */}
-      <main className="relative z-10 flex flex-col items-center justify-center pt-8 px-6 max-w-lg mx-auto text-center h-[40vh]">
-        {/* Logo */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 blur-3xl bg-primary/20 rounded-full"></div>
-          <div className="relative w-24 h-24 flex items-center justify-center bg-surface-container border border-primary/20 rounded-[32px] rotate-45 transform glow-aura">
-            <Leaf className="w-12 h-12 text-primary -rotate-45 fill-primary" />
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 max-w-lg md:max-w-4xl mx-auto text-center w-full">
+        {/* Responsive Layout Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center w-full">
+          {/* Left Side: Brand/Value Prop (Desktop Only) */}
+          <div className="hidden md:flex flex-col items-start text-left space-y-6">
+            <div className="relative">
+              <div className="absolute inset-0 blur-3xl bg-primary/20 rounded-full"></div>
+              <div className="relative w-20 h-20 flex items-center justify-center bg-surface-container border border-primary/20 rounded-[28px] rotate-45 transform glow-aura">
+                <Leaf className="w-10 h-10 text-primary -rotate-45 fill-primary" />
+              </div>
+            </div>
+            <div>
+              <h1 className="font-brand text-6xl font-bold tracking-tight text-on-surface glow-text mb-4">
+                KrishiMitra
+              </h1>
+              <p className="text-xl text-on-surface-variant font-medium max-w-sm">
+                Empowering India's Farmers with AI-Driven Intelligence and Real-Time Insights.
+              </p>
+            </div>
+            <div className="flex gap-4">
+               <div className="flex flex-col p-4 glass-panel rounded-2xl border-primary/10">
+                  <span className="text-2xl font-bold text-primary">1M+</span>
+                  <span className="text-[10px] uppercase tracking-widest text-on-surface-variant">Active Farmers</span>
+               </div>
+               <div className="flex flex-col p-4 glass-panel rounded-2xl border-primary/10">
+                  <span className="text-2xl font-bold text-primary">24/7</span>
+                  <span className="text-[10px] uppercase tracking-widest text-on-surface-variant">Expert Support</span>
+               </div>
+            </div>
           </div>
-        </div>
 
-        {/* Wordmark */}
-        <motion.h1 
-          className="font-brand text-5xl font-bold tracking-tight text-on-surface glow-text mb-2"
-          initial={{ opacity: 0, y: 10 }}
+          {/* Right Side: Auth Form */}
+          <div className="w-full">
+            <div className="md:hidden relative mb-8 flex flex-col items-center">
+              <div className="absolute inset-0 blur-3xl bg-primary/20 rounded-full"></div>
+              <div className="relative w-20 h-20 flex items-center justify-center bg-surface-container border border-primary/20 rounded-[28px] rotate-45 transform glow-aura mb-4">
+                <Leaf className="w-10 h-10 text-primary -rotate-45 fill-primary" />
+              </div>
+              <h1 className="font-brand text-4xl font-bold tracking-tight text-on-surface glow-text mb-2">
+                KrishiMitra
+              </h1>
+              <p className="text-on-surface-variant font-medium">
+                Empowering Farmers with Intelligence
+              </p>
+            </div>
+
+        <motion.div 
+          className="w-full glass-panel rounded-[40px] p-8 shadow-2xl border border-primary/10 mb-8"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ delay: 0.3 }}
         >
-          KrishiMitra
-        </motion.h1>
+          <form onSubmit={handleAuth} className="space-y-6">
+            <h2 className="text-2xl font-bold text-on-surface mb-2">
+              {isSignup ? "Create Account" : "Welcome Back"}
+            </h2>
+            
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="bg-error/10 border border-error/20 text-error text-sm rounded-xl py-2 px-4"
+              >
+                {error}
+              </motion.div>
+            )}
 
-        {/* Tagline */}
-        <motion.p 
-          className="font-hindi text-lg text-on-surface-variant tracking-wide font-medium"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.3 }}
-        >
-          Your Smart Farming Companion
-        </motion.p>
-      </main>
+            <div className="space-y-4">
+              {/* Name Input (Signup only) */}
+              <AnimatePresence>
+                {isSignup && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                    animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+                    exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                    className="relative text-left group overflow-hidden"
+                  >
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <input 
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Full Name"
+                      className="w-full bg-surface-container-highest border border-outline/50 rounded-2xl py-4 pl-12 pr-4 text-on-surface focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                      required={isSignup}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-      {/* Login Bottom Sheet */}
-      <motion.section 
-        className="fixed inset-x-0 bottom-0 z-50 max-w-lg mx-auto"
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.5 }}
-      >
-        <div className="glass-panel rounded-t-[40px] px-8 pt-8 pb-10 flex flex-col gap-6 shadow-[0_-20px_80px_rgba(0,0,0,0.8)] border-t border-primary/20">
-          {/* Handle Decor */}
-          <div className="w-12 h-1.5 bg-primary/20 rounded-full mx-auto mb-2"></div>
+              {/* Email Input */}
+              <div className="relative text-left group">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <input 
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email Address"
+                  className="w-full bg-surface-container-highest border border-outline/50 rounded-2xl py-4 pl-12 pr-4 text-on-surface focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                  required
+                />
+              </div>
 
-          <div className="space-y-1 text-left">
-            <h2 className="text-2xl font-headline font-bold text-on-surface">Welcome back</h2>
-            <p className="text-on-surface-variant font-body">Enter your mobile number to get started</p>
+              {/* Password Input */}
+              <div className="relative text-left group">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full bg-surface-container-highest border border-outline/50 rounded-2xl py-4 pl-12 pr-12 text-on-surface focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-4 flex items-center text-on-surface-variant hover:text-primary transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-primary text-on-primary font-bold py-4 rounded-2xl shadow-lg shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {isSignup ? "Creating Account..." : "Signing In..."}
+                </>
+              ) : (
+                isSignup ? "Create Account" : "Sign In"
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 flex items-center justify-center gap-2 text-sm">
+            <span className="text-on-surface-variant">
+              {isSignup ? "Already have an account?" : "Don't have an account?"}
+            </span>
+            <button 
+              onClick={() => {
+                setIsSignup(!isSignup)
+                setError("")
+              }}
+              className="text-primary font-bold hover:underline underline-offset-4"
+            >
+              {isSignup ? "Sign In" : "Sign Up"}
+            </button>
           </div>
-
-          {!otpVisible ? (
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key="phone"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-6"
-              >
-                {/* Mobile Input Field */}
-                <div className="relative group text-left">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none z-10">
-                    <span className="flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-lg text-sm font-label text-primary border border-primary/20">
-                        +91
-                    </span>
-                  </div>
-                  <input 
-                    className="w-full bg-surface-container-highest border border-outline/50 rounded-2xl py-4 pl-24 pr-4 px-4 text-on-surface font-body focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all placeholder:text-outline" 
-                    maxLength={10} 
-                    placeholder="Mobile Number" 
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                  />
-                  <label className="absolute -top-3 left-6 px-2 bg-surface text-[10px] font-bold uppercase tracking-widest font-label text-primary border border-primary/20 rounded">
-                      Mobile Number
-                  </label>
-                </div>
-                
-                {/* Primary Action */}
-                <button 
-                  onClick={() => setOtpVisible(true)}
-                  className="w-full bg-primary text-on-primary font-headline font-bold py-4 rounded-full shadow-[0_0_30px_rgba(0,255,65,0.4)] hover:scale-[1.02] active:scale-95 transition-transform"
-                >
-                    Get OTP
-                </button>
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key="otp"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-6"
-              >
-                {/* OTP Entry Area */}
-                <div className="space-y-4">
-                  <div className="flex justify-between gap-2">
-                    {[1,2,3,4,5,6].map(i => (
-                      <input 
-                        key={i}
-                        className="w-[14%] aspect-[3/4] bg-surface-container-highest border border-outline/50 rounded-xl text-center text-xl font-label text-primary focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all px-0" 
-                        maxLength={1} 
-                        placeholder="-" 
-                        type="text"
-                      />
-                    ))}
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-label px-1">
-                    <span className="text-on-surface-variant font-medium">Resend OTP in <span className="text-primary font-bold">0:45</span></span>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleLogin}
-                  disabled={isVerifying}
-                  className="block w-full text-center bg-primary text-on-primary font-headline font-bold py-4 rounded-full shadow-[0_0_30px_rgba(0,255,65,0.4)] hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-50"
-                >
-                    {isVerifying ? "Verifying..." : "Verify & Login"}
-                </button>
-              </motion.div>
-            </AnimatePresence>
-          )}
-
-          {/* Links & Legal */}
-          <div className="flex flex-col items-center gap-6 mt-2">
-            <Link className="text-on-surface-variant font-medium hover:text-primary transition-colors text-sm underline underline-offset-4 decoration-outline" to="/">
-                Continue as Guest
-            </Link>
-            <p className="text-[10px] text-center text-on-surface-variant/60 leading-relaxed max-w-[280px] font-medium">
-                By continuing, you agree to KrishiMitra's 
-                <a className="text-on-surface-variant hover:text-primary transition-colors ml-1" href="#">Terms of Service</a> &amp; 
-                <a className="text-on-surface-variant hover:text-primary transition-colors ml-1" href="#">Privacy Policy</a>
-            </p>
+            </motion.div>
           </div>
         </div>
-      </motion.section>
+
+        <p className="text-[10px] text-on-surface-variant/60 max-w-[280px]">
+          By continuing, you agree to KrishiMitra's 
+          <a href="#" className="hover:text-primary transition-colors mx-1">Terms</a> & 
+          <a href="#" className="hover:text-primary transition-colors mx-1">Privacy</a>
+        </p>
+      </main>
     </div>
   )
 }

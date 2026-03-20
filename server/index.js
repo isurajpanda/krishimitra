@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import http from "http";
 import pkg from "pg";
+import crypto from "crypto";
 const { Pool } = pkg;
 import { WebSocketServer } from "ws";
 import { VoiceSession, StreamingThinkStripper } from "./voice-session.js";
@@ -17,11 +18,16 @@ const SYSTEM_PROMPT =
 
 const PORT = process.env.PORT || 3001;
 
+// --- Helper: Passowrd Hashing ---
+function hashPassword(password, salt) {
+  return crypto.createHash("sha256").update(password + salt).digest("hex");
+}
+
 // --- PostgreSQL Setup ---
 const dbConfig = {
   user: "postgres",
   host: "localhost",
-  database: "postgres", // Start with default postgres DB
+  database: "postgres",
   password: "password",
   port: 5432,
 };
@@ -34,30 +40,44 @@ async function initDb() {
     let client = await pool.connect();
     console.log("[DB] Connected to PostgreSQL (default)");
 
-    // 1. Create the krishimitra database if it doesn't exist
+    // Ensure krishimitra database exists
     const dbName = "krishimitra";
-    const res = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
-    if (res.rowCount === 0) {
+    const dbCheck = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
+    if (dbCheck.rowCount === 0) {
       console.log(`[DB] Creating database "${dbName}"...`);
-      // CREATE DATABASE cannot be run in a transaction, and pg 'query' usually is.
-      // We'll use the client directly.
       await client.query(`CREATE DATABASE ${dbName}`);
     }
     client.release();
     await pool.end();
 
-    // 2. Reconnect to the krishimitra database
+    // Reconnect to krishimitra
     pool = new Pool({ ...dbConfig, database: dbName });
     const finalClient = await pool.connect();
-    console.log(`[DB] Connected to database "${dbName}"`);
+    
+    // FORCED RESET IF SCHEMA IS OLD (Dev phase)
+    const checkEmail = await finalClient.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name='users' AND column_name='email'
+    `);
 
-    // 3. Initialize schema
+    if (checkEmail.rowCount === 0) {
+      console.log("[DB] Outdated schema detected. RESETTING tables...");
+      await finalClient.query("DROP TABLE IF EXISTS chat_history CASCADE");
+      await finalClient.query("DROP TABLE IF EXISTS users CASCADE");
+    }
+
+    // Modern Schema
     await finalClient.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        phone_number VARCHAR(15) UNIQUE NOT NULL,
         name VARCHAR(100),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
         location VARCHAR(200),
+        farm_type VARCHAR(100),
+        primary_crops TEXT[],
+        onboarded BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -71,11 +91,9 @@ async function initDb() {
       );
     `);
     finalClient.release();
-    console.log("[DB] Schema initialized");
+    console.log("[DB] Database and Schema Ready");
   } catch (err) {
     console.error("[DB] Error initializing database:", err.message);
-    // Fallback: use 'postgres' database if 'krishimitra' fails
-    console.log("[DB] Falling back to default 'postgres' database for tables...");
     pool = new Pool(dbConfig);
   }
 }
@@ -92,26 +110,83 @@ const apiV0 = express.Router();
 // Health check
 apiV0.get("/health", (_req, res) => res.json({ status: "ok", service: "KrishiMitra API v0" }));
 
-// Auth - Simple Login
-apiV0.post("/auth/login", async (req, res) => {
-  const { phoneNumber } = req.body;
-  if (!phoneNumber) return res.status(400).json({ error: "Phone number is required" });
+// Signup Endpoint
+apiV0.post("/auth/signup", async (req, res) => {
+  const { name, email, password } = req.body;
+  
+  if (!name) return res.status(400).json({ error: "Name is required" });
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
 
   try {
-    // Upsert user
+    const salt = crypto.randomUUID();
+    const hash = hashPassword(password, salt);
+    
     const result = await pool.query(
-      "INSERT INTO users (phone_number) VALUES ($1) ON CONFLICT (phone_number) DO UPDATE SET phone_number = EXCLUDED.phone_number RETURNING *",
-      [phoneNumber]
+      "INSERT INTO users (name, email, password_hash, salt) VALUES ($1, $2, $3, $4) RETURNING id, email, name",
+      [name, email, hash, salt]
     );
-    const user = result.rows[0];
-    res.json({ success: true, user });
+    res.json({ success: true, user: result.rows[0] });
   } catch (err) {
-    console.error("[Auth Error]:", err);
-    res.status(500).json({ error: "Authentication failed" });
+    if (err.code === '23505') {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+    console.error("[Signup Error]:", err);
+    res.status(500).json({ error: "Signup failed" });
   }
 });
 
-// Text-only chat proxy
+// Login Endpoint
+apiV0.post("/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: "Missing email or password" });
+
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (result.rowCount === 0) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const user = result.rows[0];
+    const hash = hashPassword(password, user.salt);
+    
+    if (hash === user.password_hash) {
+      res.json({ success: true, user: { id: user.id, email: user.email, name: user.name, onboarded: user.onboarded } });
+    } else {
+      res.status(401).json({ error: "Invalid email or password" });
+    }
+  } catch (err) {
+    console.error("[Login Error]:", err);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// Update Profile (Onboarding)
+apiV0.patch("/auth/profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { location, farmType, primaryCrops } = req.body;
+
+  try {
+    const result = await pool.query(
+      "UPDATE users SET location = $1, farm_type = $2, primary_crops = $3, onboarded = TRUE WHERE id = $4 RETURNING *",
+      [location, farmType, primaryCrops, userId]
+    );
+    
+    if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error("[Profile Update Error]:", err);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// AI Chat Endpoint (versioned)
 apiV0.post("/ai-chat", async (req, res) => {
   const { messages, userId } = req.body;
   if (!messages) return res.status(400).json({ error: "Missing messages" });
@@ -155,7 +230,6 @@ apiV0.post("/ai-chat", async (req, res) => {
         if (!line.startsWith("data: ")) continue;
         const dataStr = line.slice(6).trim();
         if (dataStr === "[DONE]") {
-          // Log history to DB if userId provided
           if (userId && fullText) {
              const userMsg = messages[messages.length - 1].content;
              await pool.query("INSERT INTO chat_history (user_id, role, message) VALUES ($1, $2, $3)", [userId, 'user', userMsg]);
@@ -169,7 +243,6 @@ apiV0.post("/ai-chat", async (req, res) => {
           const json = JSON.parse(dataStr);
           const token = json.choices?.[0]?.delta?.content || "";
           const cleanToken = stripper.process(token);
-
           if (cleanToken) {
             fullText += cleanToken;
             const cleanJson = { choices: [{ delta: { content: cleanToken } }] };
@@ -187,37 +260,17 @@ apiV0.post("/ai-chat", async (req, res) => {
 
 app.use("/api/v0", apiV0);
 
-// Root redirect or simple info
-app.get("/", (_req, res) => res.json({ status: "ok", version: "v0", endpoints: "/api/v0" }));
+app.get("/", (_req, res) => res.json({ status: "ok", version: "v0" }));
 
 const server = http.createServer(app);
-
-// Updated WebSocket path to match v0
 const wss = new WebSocketServer({ server, path: "/api/v0/voice" });
 
 wss.on("connection", (browserWs, req) => {
-  const ip = req.socket.remoteAddress;
-  console.log(`[Server] New voice session (v0) from ${ip}`);
-
   const session = new VoiceSession(browserWs);
-
-  browserWs.on("message", (message) => {
-    session.handleBrowserMessage(message);
-  });
-
-  browserWs.on("close", () => {
-    console.log(`[Server] Session closed from ${ip}`);
-    session.destroy();
-  });
-
-  browserWs.on("error", (err) => {
-    console.error(`[Server] Browser WS error: ${err.message}`);
-    session.destroy();
-  });
+  browserWs.on("message", (msg) => session.handleBrowserMessage(msg));
+  browserWs.on("close", () => session.destroy());
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🚀 KrishiMitra v0 server running at http://localhost:${PORT}`);
-  console.log(`   API Base: http://localhost:${PORT}/api/v0`);
-  console.log(`   WebSocket endpoint: ws://localhost:${PORT}/api/v0/voice\n`);
+  console.log(`\n🚀 KrishiMitra v0 running at http://localhost:${PORT}`);
 });
