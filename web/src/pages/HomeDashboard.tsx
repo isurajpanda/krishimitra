@@ -1,6 +1,6 @@
 export function HomeDashboard() {
   return (
-    <div className="font-body text-on-surface flex flex-col antialiased">
+    <div className="font-body text-on-surface flex flex-col antialiased max-w-5xl mx-auto w-full">
       {/* Top Bar */}
       <header className="sticky top-0 z-30 p-4">
         <div className="glass-panel rounded-full px-4 py-3 flex items-center justify-between shadow-lg">
@@ -32,10 +32,10 @@ export function HomeDashboard() {
 
       <main className="flex-1 p-4 flex flex-col gap-4">
         {/* Bento Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           
           {/* Tile A: Weather (Full Width) */}
-          <div className="col-span-2 glass-panel rounded-2xl p-6 group relative overflow-hidden">
+          <div className="col-span-2 md:col-span-4 lg:col-span-2 glass-panel rounded-2xl p-6 group relative overflow-hidden">
             <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[60px] -mr-20 -mt-20"></div>
             <div className="flex justify-between items-start mb-6 relative z-10">
               <div>
@@ -93,7 +93,7 @@ export function HomeDashboard() {
           </div>
 
           {/* Tile B: My Field (Left) */}
-          <div className="glass-panel rounded-2xl p-5 flex flex-col justify-between">
+          <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
                 <span className="material-symbols-outlined text-primary">grass</span>
@@ -125,7 +125,7 @@ export function HomeDashboard() {
           </div>
 
           {/* Tile C: Market Price (Right) */}
-          <div className="glass-panel rounded-2xl p-5 flex flex-col justify-between">
+          <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
                 <span className="material-symbols-outlined text-primary">agriculture</span>
@@ -146,7 +146,7 @@ export function HomeDashboard() {
           </div>
 
           {/* Tile D: Pest Alert (Full Width) */}
-          <div className="col-span-2 glass-panel rounded-2xl p-5 border-l-4 border-l-error relative overflow-hidden">
+          <div className="col-span-2 md:col-span-4 glass-panel rounded-2xl p-5 border-l-4 border-l-error relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-error/10 to-transparent pointer-events-none"></div>
             <div className="flex items-center justify-between relative z-10 w-full">
               <div className="flex items-start gap-4">

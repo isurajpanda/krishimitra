@@ -22,7 +22,7 @@ export function MessageList({ messages, isStreaming, streamText }: MessageListPr
   return (
     <div 
       ref={scrollRef} 
-      className="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-8 scroll-smooth scrollbar-none bg-black"
+      className="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-8 scroll-smooth scrollbar-hide bg-transparent"
     >
       {messages.map((msg) => (
         msg.type === "voice" ? (

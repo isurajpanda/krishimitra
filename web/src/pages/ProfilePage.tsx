@@ -10,7 +10,7 @@ export function ProfilePage() {
       </div>
 
       {/* Top App Bar */}
-      <header className="fixed top-0 left-0 right-0 z-50 p-4 max-w-lg mx-auto">
+      <header className="fixed top-0 left-0 right-0 z-50 p-4 max-w-4xl w-full mx-auto">
         <div className="glass-panel rounded-full px-5 py-3 flex justify-between items-center shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full border border-primary/20 overflow-hidden bg-surface-container">
@@ -24,10 +24,10 @@ export function ProfilePage() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-lg mx-auto px-4 pt-24 space-y-6">
+      <main className="relative z-10 max-w-4xl w-full mx-auto px-4 pt-24 pb-8 flex flex-col md:grid md:grid-cols-2 md:grid-flow-row-dense gap-6">
         {/* Profile Hero */}
         <motion.section 
-          className="glass-panel rounded-3xl p-6 group"
+          className="col-span-1 md:col-span-2 glass-panel rounded-3xl p-6 group"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -59,7 +59,7 @@ export function ProfilePage() {
 
         {/* My Farm Section */}
         <motion.section 
-          className="space-y-4"
+          className="space-y-4 col-span-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -119,7 +119,7 @@ export function ProfilePage() {
 
         {/* Preferences Section */}
         <motion.section 
-          className="space-y-4"
+          className="space-y-4 col-span-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -177,7 +177,7 @@ export function ProfilePage() {
 
         {/* Linked Services */}
         <motion.section 
-          className="space-y-4"
+          className="space-y-4 col-span-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
@@ -236,7 +236,7 @@ export function ProfilePage() {
 
         {/* App Section */}
         <motion.section 
-          className="space-y-2 pb-8"
+          className="space-y-2 col-span-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}

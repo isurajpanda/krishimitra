@@ -82,22 +82,22 @@ export function VoiceBubble({ role, time, durationSec = 12 }: VoiceBubbleProps) 
       <div className={cn(
         "w-[270px] flex items-center p-3 gap-3.5 backdrop-blur-md relative rounded-[18px]",
         isAI 
-          ? "bg-[rgba(124,58,255,0.13)] border border-[rgba(124,58,255,0.35)] rounded-tl-[4px] shadow-[0_8px_30px_rgba(0,0,0,0.3),_inset_0_0_20px_rgba(255,255,255,0.02)]"
-          : "bg-[rgba(0,212,200,0.10)] border border-[rgba(0,212,200,0.35)] rounded-tr-[4px] shadow-[0_8px_30px_rgba(0,0,0,0.3),_inset_0_0_20px_rgba(255,255,255,0.02)]"
+          ? "bg-primary/10 border border-primary/30 rounded-tl-[4px] shadow-[0_8px_30px_rgba(0,0,0,0.3),_inset_0_0_20px_rgba(0,255,65,0.05)]"
+          : "bg-tertiary/10 border border-tertiary/30 rounded-tr-[4px] shadow-[0_8px_30px_rgba(0,0,0,0.3),_inset_0_0_20px_rgba(128,255,180,0.05)]"
       )}>
         <button 
           onClick={togglePlay}
           className={cn(
             "shrink-0 w-[38px] h-[38px] rounded-full flex items-center justify-center border-none transition-all duration-300 active:scale-95 hover:scale-105",
             isAI 
-              ? "bg-gradient-to-br from-[#7C3AFF] to-[#481EDF] shadow-[0_4px_15px_rgba(124,58,255,0.4)] hover:shadow-[0_0_20px_rgba(124,58,255,0.8)]"
-              : "bg-gradient-to-br from-[#00D4C8] to-[#009D94] shadow-[0_4px_15px_rgba(0,212,200,0.3)] hover:shadow-[0_0_20px_rgba(0,212,200,0.8)]"
+              ? "bg-primary shadow-[0_4px_15px_rgba(0,255,65,0.4)] hover:shadow-[0_0_20px_rgba(0,255,65,0.8)]"
+              : "bg-tertiary shadow-[0_4px_15px_rgba(128,255,180,0.3)] hover:shadow-[0_0_20px_rgba(128,255,180,0.8)]"
           )}
         >
           {isPlaying ? (
-            <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            <svg className="w-3.5 h-3.5 fill-black" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
           ) : (
-            <svg className="w-3.5 h-3.5 fill-white translate-x-[1px]" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg className="w-3.5 h-3.5 fill-black translate-x-[1px]" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           )}
         </button>
 
@@ -115,7 +115,7 @@ export function VoiceBubble({ role, time, durationSec = 12 }: VoiceBubbleProps) 
                   className={cn(
                     "w-[3px] rounded-[2px] transition-colors duration-100 ease-linear origin-center",
                     played 
-                      ? isAI ? "bg-gradient-to-t from-[#7C3AFF] to-[#C08DFF]" : "bg-gradient-to-t from-[#00D4C8] to-[#74F9F2]"
+                      ? isAI ? "bg-primary shadow-[0_0_5px_rgba(0,255,65,0.5)]" : "bg-tertiary shadow-[0_0_5px_rgba(128,255,180,0.5)]"
                       : "bg-white/20",
                     isPlaying ? "animate-[barBounce_0.4s_infinite_alternate_ease-in-out]" : ""
                   )}
@@ -137,11 +137,11 @@ export function VoiceBubble({ role, time, durationSec = 12 }: VoiceBubbleProps) 
       </div>
 
       <div className={cn(
-        "text-[11px] text-[#8A84B3] mt-1.5 flex items-center gap-1 px-1",
+        "text-[11px] text-on-surface-variant mt-1.5 flex items-center gap-1 px-1",
         isAI ? "justify-start" : "justify-end"
       )}>
         <span>{time}</span>
-        {!isAI && <CheckCheck className="w-3.5 h-3.5 text-[#00D4C8]" />}
+        {!isAI && <CheckCheck className="w-3.5 h-3.5 text-primary" />}
       </div>
     </div>
   )

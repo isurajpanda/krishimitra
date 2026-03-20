@@ -29,7 +29,7 @@ export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps
           onKeyDown={handleKeyDown}
           placeholder="Message..."
           autoComplete="off"
-          className="w-full h-full bg-white/5 border border-white/10 rounded-full px-6 text-white placeholder-white/30 text-[15px] outline-none transition-all duration-200 focus:bg-white/10 focus:border-[#7C3AFF]/40"
+          className="w-full h-full bg-white/5 border border-white/10 rounded-full px-6 text-white placeholder-white/30 text-[15px] outline-none transition-all duration-200 focus:bg-white/10 focus:border-primary/40"
         />
       </div>
 
@@ -39,7 +39,7 @@ export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps
         className={cn(
           "w-12 h-12 shrink-0 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg",
           canSend 
-            ? "bg-gradient-to-br from-[#7C3AFF] to-[#00D4C8] text-white hover:scale-105 active:scale-95" 
+            ? "bg-primary text-on-primary hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,255,65,0.4)]" 
             : "bg-white/5 border border-white/10 text-white/30 opacity-50 cursor-not-allowed"
         )}
       >

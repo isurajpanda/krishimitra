@@ -81,7 +81,7 @@ export function HomeScreen({ onStartVoice }: HomeScreenProps) {
           )}>
             {/* Glow behind orb */}
             <div className={cn(
-              "absolute bg-[#C08DFF] rounded-full blur-[40px] opacity-40 transition-all duration-700",
+              "absolute bg-primary rounded-full blur-[40px] opacity-20 transition-all duration-700",
               isChatMode ? "w-12 h-12 blur-[20px]" : "w-[180px] md:w-[250px] lg:w-[320px] h-[50px] md:h-[80px]"
             )} />
             
@@ -93,10 +93,10 @@ export function HomeScreen({ onStartVoice }: HomeScreenProps) {
                 isChatMode ? "w-14 h-14 md:w-16 md:h-16" : "w-[110px] h-[110px] md:w-[180px] lg:w-[240px] md:h-[180px] lg:h-[240px]"
               )}
               style={{
-                background: 'linear-gradient(135deg, rgba(230,230,255,1) 0%, rgba(160,120,255,1) 40%, rgba(200,180,100,1) 80%, rgba(100,50,200,1) 100%)',
+                background: 'linear-gradient(135deg, rgba(128,255,180,1) 0%, rgba(0,255,65,1) 40%, rgba(0,100,20,1) 80%, rgba(0,20,5,1) 100%)',
                 boxShadow: isChatMode 
-                  ? '0 0 20px rgba(160,120,255,0.3), inset -5px -5px 10px rgba(0,0,0,0.5)' 
-                  : '0 0 40px rgba(160,120,255,0.4), inset -15px -15px 30px rgba(0,0,0,0.5), inset 15px 15px 30px rgba(255,255,255,0.8)'
+                  ? '0 0 20px rgba(0,255,65,0.3), inset -5px -5px 10px rgba(0,0,0,0.5)' 
+                  : '0 0 40px rgba(0,255,65,0.4), inset -15px -15px 30px rgba(0,0,0,0.5), inset 15px 15px 30px rgba(255,255,255,0.8)'
               }}
             >
               <div className="absolute top-1/4 left-1/4 w-1 md:w-2 h-1 md:h-2 bg-white rounded-full blur-[1px] shadow-[0_0_5px_white]" />
@@ -111,8 +111,8 @@ export function HomeScreen({ onStartVoice }: HomeScreenProps) {
             ? "max-h-0 opacity-0 pointer-events-none mt-0 overflow-hidden" 
             : "max-h-[400px] opacity-100 mt-auto mb-8 md:mb-12 overflow-visible"
         )}>
-          <MenuBadge title="Speak with AI" icon={<Mic className="w-6 h-6 text-white" />} gradient="from-[#a75ff7] to-[#732ae6]" onClick={onStartVoice} />
-          <MenuBadge title="Chat with AI" icon={<MessageSquare className="w-6 h-6 text-white" />} gradient="from-[#5581f1] to-[#1250d4]" onClick={() => setIsChatMode(true)} />
+          <MenuBadge title="Speak with AI" icon={<Mic className="w-6 h-6 text-primary" />} gradient="border-primary/20 bg-primary/10" onClick={onStartVoice} />
+          <MenuBadge title="Chat with AI" icon={<MessageSquare className="w-6 h-6 text-tertiary" />} gradient="border-tertiary/20 bg-tertiary/10" onClick={() => setIsChatMode(true)} />
         </div>
 
         {/* Message List Area */}
@@ -133,8 +133,8 @@ export function HomeScreen({ onStartVoice }: HomeScreenProps) {
               className="w-[calc(100%-48px)] lg:max-w-3xl mx-auto mb-8 bg-white/5 border border-white/10 rounded-full h-14 md:h-16 flex items-center px-5 md:px-6 justify-between backdrop-blur-lg hover:bg-white/10 transition-colors cursor-text group"
             >
               <span className="text-white/40 text-sm md:text-base ml-2 group-hover:text-white/60 transition-colors">Ask anything</span>
-              <div className="w-6 md:w-8 h-6 md:h-8 rounded-full shadow-[0_0_10px_rgba(200,180,100,0.5)] transition-transform group-hover:scale-110" style={{
-                  background: 'linear-gradient(135deg, rgba(230,230,255,1) 0%, rgba(160,120,255,1) 40%, rgba(200,180,100,1) 80%)',
+              <div className="w-6 md:w-8 h-6 md:h-8 rounded-full shadow-[0_0_10px_rgba(0,255,65,0.5)] transition-transform group-hover:scale-110" style={{
+                  background: 'linear-gradient(135deg, rgba(128,255,180,1) 0%, rgba(0,255,65,1) 40%, rgba(0,100,20,1) 80%)',
                 }} />
             </div>
           ) : (
@@ -161,7 +161,7 @@ function MenuBadge({ title, icon, gradient, onClick }: { title: string, icon: Re
         "hover:scale-105 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] active:scale-95"
       )}
     >
-      <div className="w-10 md:w-14 h-10 md:h-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md shadow-inner">
+      <div className="w-10 md:w-14 h-10 md:h-14 rounded-full bg-surface-container flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.2)]">
         {icon}
       </div>
       <div className="font-semibold text-base md:text-xl lg:text-2xl text-center leading-tight text-white tracking-tight">

@@ -114,9 +114,9 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
         >
           <ArrowLeft className="w-5 md:w-5 h-5 md:h-5 text-white" />
         </button>
-        <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center z-20 shadow-[0_0_15px_rgba(255,255,255,0.05)] transition-transform hover:scale-105">
+        <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center z-20 shadow-[0_0_15px_rgba(0,255,65,0.1)] transition-transform hover:scale-105">
             <div className="w-8 md:w-10 h-8 md:h-10 rounded-full" style={{
-              background: 'linear-gradient(135deg, rgba(230,230,255,1) 0%, rgba(160,120,255,1) 40%, rgba(200,180,100,1) 80%)',
+              background: 'linear-gradient(135deg, rgba(128,255,180,1) 0%, rgba(0,255,65,1) 40%, rgba(0,100,20,1) 80%)',
             }} />
         </div>
       </div>
@@ -127,7 +127,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
           {displayTitle}
         </h1>
         {isProcessing && !fullText && (
-           <p className="mt-4 md:mt-8 text-lg md:text-xl text-[#00D4C8] font-medium leading-[1.4] animate-pulse">
+           <p className="mt-4 md:mt-8 text-lg md:text-xl text-primary font-medium leading-[1.4] animate-pulse">
              Processing...
            </p>
         )}
@@ -140,7 +140,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
         </div>
 
         {/* Glow behind orb */}
-        <div className={`absolute top-[40%] md:top-[30%] w-[150px] md:w-[250px] h-[150px] md:h-[250px] rounded-full blur-[80px] md:blur-[100px] mix-blend-screen pointer-events-none transition-all duration-[2s] ${orbState === 'speaking' ? 'bg-[#00D4C8] opacity-50 scale-125' : orbState === 'listening' ? 'bg-[#C08DFF] opacity-30 scale-100' : 'bg-[#C08DFF] opacity-10 scale-90'}`} />
+        <div className={`absolute top-[40%] md:top-[30%] w-[150px] md:w-[250px] h-[150px] md:h-[250px] rounded-full blur-[80px] md:blur-[100px] mix-blend-screen pointer-events-none transition-all duration-[2s] ${orbState === 'speaking' ? 'bg-primary opacity-30 scale-125' : orbState === 'listening' ? 'bg-primary opacity-20 scale-100' : 'bg-primary opacity-10 scale-90'}`} />
 
         {/* Central Orb */}
         <button
@@ -148,11 +148,11 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
           className="relative w-24 h-24 md:w-32 md:h-32 rounded-full z-10 flex items-center justify-center transition-all duration-300 outline-none group cursor-pointer"
         >
            {/* Inner Sphere */}
-           <div className={`absolute inset-0 rounded-full transition-all duration-1000 ${orbState === 'speaking' ? 'shadow-[0_0_60px_rgba(0,212,200,0.8)]' : orbState === 'listening' ? 'shadow-[0_0_40px_rgba(160,120,255,0.8)] animate-pulse' : 'opacity-60 grayscale'}`}
+           <div className={`absolute inset-0 rounded-full transition-all duration-1000 ${orbState === 'speaking' ? 'shadow-[0_0_60px_rgba(0,255,65,0.6)]' : orbState === 'listening' ? 'shadow-[0_0_40px_rgba(0,255,65,0.4)] animate-pulse' : 'opacity-60 grayscale'}`}
              style={{
                background: orbState === 'speaking'
-                  ? 'radial-gradient(circle at 30% 30%, #40fff2 0%, #00D4C8 40%, #005a55 100%)'
-                  : 'radial-gradient(circle at 30% 30%, #e6e6ff 0%, #C08DFF 40%, #4a2b85 100%)',
+                  ? 'radial-gradient(circle at 30% 30%, #80FFB4 0%, #00FF41 40%, #003d10 100%)'
+                  : 'radial-gradient(circle at 30% 30%, #D0FFD0 0%, #00FF41 40%, #003d10 100%)',
                boxShadow: 'inset -15px -15px 30px rgba(0,0,0,0.6), inset 15px 15px 30px rgba(255,255,255,0.8)'
              }}
            />
@@ -167,8 +167,8 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
                     ref={(el) => { barRefs.current[i] = el; }}
                     className={`h-[2px] md:h-[3px] rounded-full transition-colors duration-500 origin-left
                       ${orbState === 'idle' ? 'bg-white/20' :
-                        orbState === 'listening' ? 'bg-[#C08DFF] shadow-[0_0_8px_rgba(192,141,255,0.9)]' :
-                        'bg-[#00D4C8] shadow-[0_0_12px_rgba(0,212,200,0.9)]'}
+                        orbState === 'listening' ? 'bg-primary shadow-[0_0_8px_rgba(0,255,65,0.9)]' :
+                        'bg-tertiary shadow-[0_0_12px_rgba(128,255,180,0.9)]'}
                     `}
                     style={{
                       width: `${bar.baseLen}px`,

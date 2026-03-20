@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(), viteSingleFile()],
   build: {
     rollupOptions: {
-      input: path.resolve(__dirname, 'chat.html')
+      input: path.resolve(__dirname, 'index.html')
     }
   },
   resolve: {

@@ -14,7 +14,7 @@ export function NotificationsPage() {
       </div>
 
       {/* TopAppBar */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center max-w-lg mx-auto glass-panel rounded-full mx-4 mt-4 px-6 py-3 shadow-lg">
+      <header className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center max-w-4xl w-[calc(100%-2rem)] mx-auto glass-panel rounded-full mt-4 px-6 py-3 shadow-lg">
         <div className="flex items-center gap-3">
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -31,7 +31,7 @@ export function NotificationsPage() {
       </header>
 
       {/* Content Canvas */}
-      <main className="relative z-10 pt-28 px-4 max-w-lg mx-auto">
+      <main className="relative z-10 pt-28 px-4 max-w-4xl w-full mx-auto">
         {/* Filter Strip */}
         <div className="flex overflow-x-auto gap-3 pb-6 scrollbar-hide -mx-4 px-4 relative z-20">
           {filters.map((filter) => (
@@ -51,7 +51,7 @@ export function NotificationsPage() {
 
         {/* Bento Priority Alerts */}
         <motion.div 
-          className="grid grid-cols-2 gap-4 mb-8"
+          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -97,7 +97,7 @@ export function NotificationsPage() {
           </div>
 
           {/* Market Flash Tile */}
-          <div className="glass-panel rounded-2xl p-5 flex flex-col justify-between">
+          <div className="col-span-1 md:col-span-2 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div>
               <span className="font-label text-primary text-[10px] tracking-widest uppercase font-bold">Wheat Market</span>
               <div className="flex items-baseline gap-1 mt-1">
@@ -112,7 +112,7 @@ export function NotificationsPage() {
           </div>
 
           {/* Advisory Quick Link */}
-          <div className="glass-panel rounded-2xl p-5 flex flex-col justify-between">
+          <div className="col-span-1 md:col-span-2 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center mb-2 border border-primary/20">
               <span className="material-symbols-outlined text-primary">lightbulb</span>
             </div>
@@ -127,7 +127,7 @@ export function NotificationsPage() {
         <h3 className="font-label text-[10px] tracking-widest text-on-surface-variant uppercase font-bold mb-4 px-1">Recent Updates</h3>
         
         <motion.div 
-          className="space-y-4"
+          className="grid grid-cols-1 md:grid-cols-2 gap-4"
           initial="hidden"
           animate="visible"
           variants={{

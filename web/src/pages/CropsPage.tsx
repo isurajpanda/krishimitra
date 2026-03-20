@@ -14,7 +14,7 @@ export function CropsPage() {
   return (
     <div className="bg-background text-on-surface font-body selection:bg-primary/30 min-h-[100dvh] antialiased">
       {/* Top Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center max-w-lg mx-auto rounded-full mt-4 px-4 py-2 glass-panel shadow-lg">
+      <header className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center max-w-3xl w-[calc(100%-2rem)] mx-auto rounded-full mt-4 px-4 py-2 glass-panel shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container-high border border-primary/20">
             <img alt="Farmer Profile Picture" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8co6hnZPQzuwm57Rb3mWqL-pCFnYiHakTLmoOyjHBmEswzhIoy6Xh7oK2uuW8F43fhACN8VinpJ_VAQmAQdS9v40XEk3izpHwazq4BunWQjJQgl5yNii2A_ZuhfjxNjJZhC59d3foq88D5IdPb1qHwI9CoUVQxR_A3NXgSXgwTN_y3P_mQl4mnIegRDFvOHdZSrgn8ISDZaq8HrGq486-i1HCg9lQJ94TGAEJANDwzKJ0oybRM-yGoOYAygjx59gBWDtRRLzt7IFy" />
@@ -38,7 +38,7 @@ export function CropsPage() {
         </div>
       </header>
 
-      <main className="pt-24 px-4 max-w-lg mx-auto pb-12">
+      <main className="pt-24 px-4 max-w-3xl w-full mx-auto pb-12">
         {/* Tab Bar */}
         <nav className="glass-panel rounded-2xl p-1 flex items-center justify-between mb-8 relative">
           {tabs.map((tab) => {
@@ -118,9 +118,9 @@ export function CropsPage() {
               </section>
 
               {/* Results Bento Grid */}
-              <section className="grid grid-cols-2 gap-4">
+              <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* Hero Match Tile (Rank 1) */}
-                <div className="col-span-2 glass-panel rounded-[28px] p-6 relative overflow-hidden group">
+                <div className="col-span-2 md:col-span-4 lg:col-span-2 glass-panel rounded-[28px] p-6 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4">
                     <div className="bg-primary/20 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30 flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>workspace_premium</span>
@@ -180,7 +180,7 @@ export function CropsPage() {
                 </div>
 
                 {/* Tile 2 */}
-                <div className="glass-panel rounded-[28px] p-4 flex flex-col justify-between aspect-square relative overflow-hidden">
+                <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-[28px] p-4 flex flex-col justify-between aspect-square relative overflow-hidden">
                   <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/5 rounded-full blur-2xl"></div>
                   <div>
                     <div className="flex justify-between items-start mb-2">
@@ -196,7 +196,7 @@ export function CropsPage() {
                 </div>
 
                 {/* Tile 3 */}
-                <div className="glass-panel rounded-[28px] p-4 flex flex-col justify-between aspect-square relative overflow-hidden">
+                <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-[28px] p-4 flex flex-col justify-between aspect-square relative overflow-hidden">
                   <div className="absolute -right-4 -top-4 w-20 h-20 bg-tertiary/5 rounded-full blur-2xl"></div>
                   <div>
                     <div className="flex justify-between items-start mb-2">

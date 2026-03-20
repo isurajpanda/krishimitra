@@ -24,16 +24,18 @@ export function MainLayout() {
       </div>
 
       {/* Chat FAB */}
-      <button 
-        onClick={() => setChatView("home")}
-        className="fixed bottom-24 right-6 w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_0_30px_rgba(0,255,65,0.4)] z-50 hover:scale-110 transition-transform active:scale-95"
-      >
-        <span className="material-symbols-outlined text-3xl font-bold" style={{ fontVariationSettings: "'FILL' 0" }}>forum</span>
-      </button>
+      <div className="fixed bottom-24 left-0 right-0 z-50 pointer-events-none flex justify-end px-6 max-w-7xl mx-auto">
+        <button 
+          onClick={() => setChatView("home")}
+          className="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_0_30px_rgba(0,255,65,0.4)] pointer-events-auto hover:scale-110 transition-transform active:scale-95"
+        >
+          <span className="material-symbols-outlined text-3xl font-bold" style={{ fontVariationSettings: "'FILL' 0" }}>forum</span>
+        </button>
+      </div>
 
       {/* Glass Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 pb-safe">
-        <div className="glass-panel border-t-0 rounded-t-3xl border-b-0 mx-2 mb-2 pb-2 shadow-2xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 pb-safe pointer-events-none flex justify-center w-full">
+        <div className="glass-panel border-t-0 rounded-t-3xl border-b-0 w-full max-w-md mx-2 mb-2 pb-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] bg-surface/80 backdrop-blur-xl pointer-events-auto">
           <div className="flex justify-between items-center px-6 py-3">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
