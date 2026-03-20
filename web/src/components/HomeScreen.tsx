@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 
 interface HomeScreenProps {
   onStartVoice: () => void
+  onClose?: () => void
 }
 
 export function HomeScreen({ onStartVoice }: HomeScreenProps) {
