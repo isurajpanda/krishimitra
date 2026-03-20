@@ -31,7 +31,7 @@ export function TextBubble({ role, text, streaming }: BubbleProps) {
         <div className={cn(
           "px-[22px] py-[16px] leading-tight transition-all duration-300",
           isAI 
-            ? "bg-transparent text-white/95 p-0 text-xl md:text-2xl font-medium" 
+            ? "bg-transparent text-on-surface/95 p-0 text-xl md:text-2xl font-medium" 
             : "bg-surface-container border border-outline/20 text-on-surface rounded-[24px_24px_4px_24px] text-xl md:text-2xl font-medium shadow-[0_5px_20px_rgba(0,0,0,0.2)]"
         )}>
           <span className="whitespace-pre-wrap">{text}</span>

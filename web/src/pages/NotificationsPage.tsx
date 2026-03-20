@@ -1,34 +1,55 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
+import { TopAppBar } from "@/components/TopAppBar"
+import { useTheme } from "@/hooks/useTheme"
+import { 
+  Sun, 
+  Moon, 
+  AlertTriangle, 
+  Sparkles, 
+  FileText, 
+  TrendingUp, 
+  Lightbulb, 
+  Sprout, 
+  Store, 
+  Info, 
+  MoreHorizontal 
+} from "lucide-react"
 
 export function NotificationsPage() {
   const [activeFilter, setActiveFilter] = useState("All")
+  const { toggleTheme, isDark } = useTheme()
   const filters = ["All", "Weather", "Pest", "Market", "Schemes", "Advisory"]
 
   return (
-    <div className="text-on-surface font-body min-h-screen pb-12 overflow-x-hidden antialiased">
-      {/* Background Decoration */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]"></div>
-      </div>
+    <div className="bg-transparent text-on-surface font-body min-h-screen pb-12 overflow-x-hidden antialiased">
 
-      {/* TopAppBar */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center max-w-4xl w-[calc(100%-2rem)] mx-auto glass-panel rounded-full mt-4 px-6 py-3 shadow-lg">
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary shadow-[0_0_8px_rgba(0,255,65,1)]"></span>
-          </span>
-          <h1 className="font-headline font-bold text-lg tracking-tight text-primary glow-text">ALERTS</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="text-[10px] font-label tracking-widest text-on-surface-variant hover:text-primary transition-colors font-bold">MARK ALL READ</button>
-          <div className="h-9 w-9 rounded-full bg-surface-container flex items-center justify-center cursor-pointer border border-outline/50 hover:bg-primary/10 transition-all">
-            <span className="material-symbols-outlined text-on-surface text-lg">dark_mode</span>
+      <TopAppBar 
+        showProfilePic={false}
+        leftAction={
+          <div className="flex items-center gap-3 pl-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary shadow-[0_0_8px_rgba(0,255,65,1)]"></span>
+            </span>
+            <h1 className="font-headline font-bold text-lg tracking-tight text-primary glow-text">ALERTS</h1>
           </div>
-        </div>
-      </header>
+        }
+        title={<></>}
+        subtitle={<></>}
+        actions={
+          <div className="flex items-center gap-4">
+            <button className="text-[10px] sm:text-xs font-label tracking-widest text-on-surface-variant hover:text-primary transition-colors font-bold">MARK ALL READ</button>
+            <button
+              onClick={toggleTheme}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-surface-container flex items-center justify-center cursor-pointer border border-outline/50 hover:bg-primary/10 hover:border-primary/30 transition-all"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
+        }
+      />
 
       {/* Content Canvas */}
       <main className="relative z-10 pt-28 px-4 max-w-4xl w-full mx-auto">
@@ -62,7 +83,7 @@ export function NotificationsPage() {
             <div className="flex justify-between items-start mb-4 relative z-10">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-error/10 rounded-xl flex items-center justify-center border border-error/30">
-                  <span className="material-symbols-outlined text-error animate-pulse">warning</span>
+                  <AlertTriangle className="w-5 h-5 text-error animate-pulse" />
                 </div>
                 <span className="font-label text-error text-[10px] tracking-widest uppercase font-bold">Critical Weather</span>
               </div>
@@ -83,7 +104,7 @@ export function NotificationsPage() {
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-primary text-lg">auto_awesome</span>
+                  <Sparkles className="w-4 h-4 text-primary" />
                   <span className="font-label text-primary text-[10px] tracking-widest uppercase font-bold">Spotlight</span>
                 </div>
                 <h3 className="font-headline font-bold text-lg text-on-surface">PM-Kisan 15th Installment Enrollment</h3>
@@ -92,7 +113,7 @@ export function NotificationsPage() {
               <button className="mt-6 w-fit bg-primary text-on-primary px-6 py-2 rounded-full font-bold text-sm shadow-[0_0_15px_rgba(0,255,65,0.4)] transition-all active:scale-95 hover:scale-[1.02]">Apply Now</button>
             </div>
             <div className="absolute right-[-10px] bottom-[-10px] opacity-10 pointer-events-none">
-              <span className="material-symbols-outlined text-[140px] text-primary rotate-12">description</span>
+              <FileText className="w-[140px] h-[140px] text-primary rotate-12" />
             </div>
           </div>
 
@@ -106,7 +127,7 @@ export function NotificationsPage() {
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2 text-on-surface-variant">
-              <span className="material-symbols-outlined text-sm">trending_up</span>
+              <TrendingUp className="w-4 h-4" />
               <span className="text-[10px] font-label font-medium uppercase">Record High</span>
             </div>
           </div>
@@ -114,7 +135,7 @@ export function NotificationsPage() {
           {/* Advisory Quick Link */}
           <div className="col-span-1 md:col-span-2 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center mb-2 border border-primary/20">
-              <span className="material-symbols-outlined text-primary">lightbulb</span>
+              <Lightbulb className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h4 className="font-headline font-bold text-sm text-on-surface">AI Soil Insight</h4>
@@ -144,7 +165,7 @@ export function NotificationsPage() {
             className="glass-panel rounded-2xl p-4 flex gap-4 border-l-4 border-l-primary/40"
           >
             <div className="h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border border-primary/10">
-              <span className="material-symbols-outlined text-primary">psychiatry</span>
+              <Sprout className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
               <div className="flex justify-between items-start">
@@ -154,7 +175,7 @@ export function NotificationsPage() {
               <h5 className="font-headline font-bold text-on-surface text-sm mt-1">Soya Bean pest control window opening soon.</h5>
               <div className="flex justify-between items-center mt-3">
                 <button className="text-primary font-bold text-[11px] hover:underline uppercase tracking-wide">Read more</button>
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">more_horiz</span>
+                <MoreHorizontal className="w-5 h-5 text-on-surface-variant" />
               </div>
             </div>
           </motion.div>
@@ -165,7 +186,7 @@ export function NotificationsPage() {
             className="glass-panel rounded-2xl p-4 flex gap-4 border-l-4 border-l-secondary/40"
           >
             <div className="h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border border-secondary/10">
-              <span className="material-symbols-outlined text-secondary">storefront</span>
+              <Store className="w-6 h-6 text-secondary" />
             </div>
             <div className="flex-1">
               <div className="flex justify-between items-start">
@@ -175,7 +196,7 @@ export function NotificationsPage() {
               <h5 className="font-headline font-bold text-on-surface text-sm mt-1">Mandi price fluctuation alert: Mustard seeds up by ₹40.</h5>
               <div className="flex justify-between items-center mt-3">
                 <button className="text-secondary font-bold text-[11px] hover:underline uppercase tracking-wide">Read more</button>
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">more_horiz</span>
+                <MoreHorizontal className="w-5 h-5 text-on-surface-variant" />
               </div>
             </div>
           </motion.div>
@@ -186,7 +207,7 @@ export function NotificationsPage() {
             className="glass-panel rounded-2xl p-4 flex gap-4 border-l-4 border-l-primary/20"
           >
             <div className="h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border border-outline/30">
-              <span className="material-symbols-outlined text-on-surface-variant">info</span>
+              <Info className="w-6 h-6 text-on-surface-variant" />
             </div>
             <div className="flex-1">
               <div className="flex justify-between items-start">
@@ -196,7 +217,7 @@ export function NotificationsPage() {
               <h5 className="font-headline font-bold text-on-surface text-sm mt-1">Monthly harvest report is now available for download.</h5>
               <div className="flex justify-between items-center mt-3">
                 <button className="text-on-surface-variant font-bold text-[11px] hover:underline uppercase tracking-wide">Read more</button>
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">more_horiz</span>
+                <MoreHorizontal className="w-5 h-5 text-on-surface-variant" />
               </div>
             </div>
           </motion.div>

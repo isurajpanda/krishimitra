@@ -20,8 +20,8 @@ export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps
   }
 
   return (
-    <div className="h-[90px] px-6 lg:px-10 flex items-center gap-3 shrink-0">
-      <div className="flex-1 relative h-[52px]">
+    <div className="px-4 sm:px-6 lg:px-10 py-8 md:py-12 pb-safe flex items-center gap-4">
+      <div className="flex-1 relative h-[72px] md:h-[84px]">
         <input
           type="text"
           value={input}
@@ -29,7 +29,7 @@ export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps
           onKeyDown={handleKeyDown}
           placeholder="Message..."
           autoComplete="off"
-          className="w-full h-full bg-white/5 border border-white/10 rounded-full px-6 text-white placeholder-white/30 text-[15px] outline-none transition-all duration-200 focus:bg-white/10 focus:border-primary/40"
+          className="w-full h-full bg-on-surface/5 border border-outline/30 rounded-3xl px-8 text-on-surface placeholder-on-surface/30 text-lg outline-none transition-all duration-200 focus:bg-on-surface/10 focus:border-primary/40"
         />
       </div>
 
@@ -37,13 +37,13 @@ export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps
         onClick={onSend}
         disabled={!canSend}
         className={cn(
-          "w-12 h-12 shrink-0 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg",
+          "w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-3xl flex items-center justify-center transition-all duration-300 shadow-xl",
           canSend 
-            ? "bg-primary text-on-primary hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,255,65,0.4)]" 
-            : "bg-white/5 border border-white/10 text-white/30 opacity-50 cursor-not-allowed"
+            ? "bg-primary text-on-primary hover:scale-110 active:scale-95 shadow-[0_0_30px_rgba(0,255,65,0.4)]" 
+            : "bg-on-surface/5 border border-outline/30 text-on-surface/30 opacity-50 cursor-not-allowed"
         )}
       >
-        <Send className="w-5 h-5 -ml-0.5" />
+        <Send className="w-7 h-7 md:w-8 md:h-8 -ml-0.5" />
       </button>
     </div>
   )

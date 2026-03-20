@@ -1,34 +1,28 @@
+import { TopAppBar } from "@/components/TopAppBar"
+import { 
+  CloudSun, 
+  Droplets, 
+  Wind, 
+  Droplet, 
+  Cloud, 
+  Sun, 
+  CloudRain, 
+  CheckCircle2, 
+  Sprout, 
+  Tractor, 
+  TrendingUp, 
+  Bug, 
+  ArrowRight,
+  Flower2,
+  Flower,
+  Leaf
+} from "lucide-react"
+
 export function HomeDashboard() {
   return (
-    <div className="font-body text-on-surface flex flex-col antialiased max-w-5xl mx-auto w-full">
+    <div className="font-body text-on-surface flex flex-col antialiased max-w-5xl mx-auto w-full pt-20">
       {/* Top Bar */}
-      <header className="sticky top-0 z-30 p-4">
-        <div className="glass-panel rounded-full px-4 py-3 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <div 
-              className="bg-surface-container rounded-full w-10 h-10 bg-center bg-cover border border-primary/20" 
-              style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB8co6hnZPQzuwm57Rb3mWqL-pCFnYiHakTLmoOyjHBmEswzhIoy6Xh7oK2uuW8F43fhACN8VinpJ_VAQmAQdS9v40XEk3izpHwazq4BunWQjJQgl5yNii2A_ZuhfjxNjJZhC59d3foq88D5IdPb1qHwI9CoUVQxR_A3NXgSXgwTN_y3P_mQl4mnIegRDFvOHdZSrgn8ISDZaq8HrGq486-i1HCg9lQJ94TGAEJANDwzKJ0oybRM-yGoOYAygjx59gBWDtRRLzt7IFy')" }}
-            >
-            </div>
-            <div>
-              <h1 className="font-headline font-bold text-sm tracking-wide">Namaste, Raju <span className="text-primary">🌿</span></h1>
-              <div className="flex items-center gap-1 text-xs text-on-surface-variant font-medium mt-0.5">
-                <span className="material-symbols-outlined text-[14px]">location_on</span>
-                Nashik, MH
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container text-on-surface border border-outline/50">
-              <span className="material-symbols-outlined">dark_mode</span>
-            </button>
-            <button className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container text-on-surface relative border border-outline/50">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <TopAppBar />
 
       <main className="flex-1 p-4 flex flex-col gap-4">
         {/* Bento Grid */}
@@ -39,23 +33,23 @@ export function HomeDashboard() {
             <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[60px] -mr-20 -mt-20"></div>
             <div className="flex justify-between items-start mb-6 relative z-10">
               <div>
-                <h2 className="font-headline text-[80px] leading-none font-bold text-primary glow-text tracking-tighter">28°</h2>
+                <h2 className="font-headline text-[80px] leading-none font-bold text-primary glow-text tracking-tighter shrink-0">28°</h2>
                 <p className="font-headline text-xl font-medium text-on-surface mt-2">Partly Cloudy</p>
               </div>
-              <span className="material-symbols-outlined text-6xl text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)]">partly_cloudy_day</span>
+              <CloudSun className="w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)] ml-4 shrink-0" />
             </div>
             
             <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide relative z-10 w-full">
               <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
-                <span className="material-symbols-outlined text-sm text-primary">humidity_mid</span>
+                <Droplets className="w-4 h-4 text-primary" />
                 <span className="font-label text-sm text-on-surface">65% Hum</span>
               </div>
               <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
-                <span className="material-symbols-outlined text-sm text-primary">air</span>
+                <Wind className="w-4 h-4 text-primary" />
                 <span className="font-label text-sm text-on-surface">12 km/h</span>
               </div>
               <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
-                <span className="material-symbols-outlined text-sm text-primary">water_drop</span>
+                <Droplet className="w-4 h-4 text-primary" />
                 <span className="font-label text-sm text-on-surface">0mm Rain</span>
               </div>
             </div>
@@ -64,22 +58,22 @@ export function HomeDashboard() {
               <div className="flex justify-between w-full">
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant">Now</span>
-                  <span className="material-symbols-outlined text-lg">cloud</span>
+                  <Cloud className="w-5 h-5" />
                   <span className="font-label text-sm">28°</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant">12 PM</span>
-                  <span className="material-symbols-outlined text-lg">sunny</span>
+                  <Sun className="w-5 h-5" />
                   <span className="font-label text-sm">31°</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant">3 PM</span>
-                  <span className="material-symbols-outlined text-lg">sunny</span>
+                  <Sun className="w-5 h-5" />
                   <span className="font-label text-sm">32°</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant text-primary">6 PM</span>
-                  <span className="material-symbols-outlined text-lg text-primary">rainy</span>
+                  <CloudRain className="w-5 h-5 text-primary" />
                   <span className="font-label text-sm text-primary">27°</span>
                 </div>
               </div>
@@ -87,7 +81,7 @@ export function HomeDashboard() {
             
             {/* Advisory Band */}
             <div className="mt-6 bg-primary/10 rounded-xl p-3 flex items-center gap-3 border border-primary/30 glow-box-primary relative z-10 w-full">
-              <span className="material-symbols-outlined text-primary">check_circle</span>
+              <CheckCircle2 className="w-5 h-5 text-primary" />
               <span className="text-sm font-bold text-primary tracking-wide">Good day to irrigate</span>
             </div>
           </div>
@@ -96,18 +90,18 @@ export function HomeDashboard() {
           <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
-                <span className="material-symbols-outlined text-primary">grass</span>
+                <Sprout className="w-5 h-5 text-primary" />
               </div>
               <span className="bg-primary/20 text-primary text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Wheat</span>
             </div>
             
             <div className="relative w-24 h-24 mx-auto mb-4">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle className="text-white/5" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" strokeWidth="8"></circle>
+                <circle className="text-on-surface/5" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" strokeWidth="8"></circle>
                 <circle 
-                  className="text-primary drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]" 
-                  cx="50" cy="50" fill="transparent" r="40" 
-                  stroke="currentColor" strokeDasharray="251" strokeDashoffset="150" strokeLinecap="round" strokeWidth="8">
+                   className="text-primary drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]" 
+                   cx="50" cy="50" fill="transparent" r="40" 
+                   stroke="currentColor" strokeDasharray="251" strokeDashoffset="150" strokeLinecap="round" strokeWidth="8">
                 </circle>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -128,7 +122,7 @@ export function HomeDashboard() {
           <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-2xl p-5 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
-                <span className="material-symbols-outlined text-primary">agriculture</span>
+                <Tractor className="w-5 h-5 text-primary" />
               </div>
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse mt-1"></div>
             </div>
@@ -140,7 +134,7 @@ export function HomeDashboard() {
             </div>
             
             <div className="flex items-center gap-1 text-primary bg-primary/10 self-start px-2 py-1 rounded-md text-xs font-bold border border-primary/20">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
+              <TrendingUp className="w-3.5 h-3.5" />
               +2.4%
             </div>
           </div>
@@ -151,7 +145,7 @@ export function HomeDashboard() {
             <div className="flex items-center justify-between relative z-10 w-full">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center border border-error/30 shrink-0 text-error">
-                  <span className="material-symbols-outlined">bug_report</span>
+                  <Bug className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -162,7 +156,7 @@ export function HomeDashboard() {
                 </div>
               </div>
               <button className="bg-surface-container/50 border border-error/30 text-error rounded-full w-10 h-10 flex items-center justify-center hover:bg-error/10 transition-colors shrink-0">
-                <span className="material-symbols-outlined">arrow_forward</span>
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -176,7 +170,7 @@ export function HomeDashboard() {
             
             <div className="glass-panel rounded-xl p-3 min-w-[140px] flex-shrink-0 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-primary/10 shrink-0">
-                <span className="material-symbols-outlined text-[16px] text-primary">spa</span>
+                <Flower2 className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-xs font-bold text-on-surface">Soybean</p>
@@ -186,7 +180,7 @@ export function HomeDashboard() {
             
             <div className="glass-panel rounded-xl p-3 min-w-[140px] flex-shrink-0 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-primary/10 shrink-0">
-                <span className="material-symbols-outlined text-[16px] text-primary">local_florist</span>
+                <Flower className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-xs font-bold text-on-surface">Cotton</p>
@@ -196,7 +190,7 @@ export function HomeDashboard() {
             
             <div className="glass-panel rounded-xl p-3 min-w-[140px] flex-shrink-0 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-primary/10 shrink-0">
-                <span className="material-symbols-outlined text-[16px] text-error">eco</span>
+                <Leaf className="w-4 h-4 text-error" />
               </div>
               <div>
                 <p className="text-xs font-bold text-on-surface">Maize</p>

@@ -116,7 +116,7 @@ export function VoiceBubble({ role, time, durationSec = 12 }: VoiceBubbleProps) 
                     "w-[3px] rounded-[2px] transition-colors duration-100 ease-linear origin-center",
                     played 
                       ? isAI ? "bg-primary shadow-[0_0_5px_rgba(0,255,65,0.5)]" : "bg-tertiary shadow-[0_0_5px_rgba(128,255,180,0.5)]"
-                      : "bg-white/20",
+                      : "bg-on-surface/20",
                     isPlaying ? "animate-[barBounce_0.4s_infinite_alternate_ease-in-out]" : ""
                   )}
                   style={{
@@ -131,7 +131,7 @@ export function VoiceBubble({ role, time, durationSec = 12 }: VoiceBubbleProps) 
           </div>
         </div>
 
-        <div className="text-[11.5px] font-medium text-white w-[30px] text-right tabular-nums">
+        <div className="text-[11.5px] font-medium text-on-surface w-[30px] text-right tabular-nums">
           {timeFormatted}
         </div>
       </div>

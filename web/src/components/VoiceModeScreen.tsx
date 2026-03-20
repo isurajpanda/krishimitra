@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react"
+import { TopAppBar } from "@/components/TopAppBar"
 import { useVoiceChat } from "../hooks/useVoiceChat"
 import { useEffect, useMemo, useRef } from "react"
 
@@ -103,27 +104,41 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
   }, [isListening, isSpeaking, barMeta, micVolumeRef]);
 
   return (
-    <div className="flex flex-col h-full w-full relative z-10 px-4 py-8 md:px-12 lg:px-16 md:py-12 max-w-[1400px] mx-auto overflow-hidden">
+    <div className="flex flex-col h-full w-full relative z-[65] px-4 py-8 md:px-12 lg:px-16 pt-24 md:pt-28 max-w-[1400px] mx-auto overflow-hidden">
       <style>{CSS}</style>
 
-      {/* Top Bar */}
-      <div className="flex justify-between items-center w-full mb-8 md:mb-12">
-        <button
-          onClick={onClose}
-          className="w-10 md:w-12 h-10 md:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center backdrop-blur-md z-20 hover:bg-white/20 transition-colors"
-        >
-          <ArrowLeft className="w-5 md:w-5 h-5 md:h-5 text-white" />
-        </button>
-        <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center z-20 shadow-[0_0_15px_rgba(0,255,65,0.1)] transition-transform hover:scale-105">
-            <div className="w-8 md:w-10 h-8 md:h-10 rounded-full" style={{
-              background: 'linear-gradient(135deg, rgba(128,255,180,1) 0%, rgba(0,255,65,1) 40%, rgba(0,100,20,1) 80%)',
-            }} />
-        </div>
-      </div>
+      {/* Universal TopAppBar */}
+      <TopAppBar 
+        className="z-[70]"
+        showProfilePic={false}
+        title={<></>}
+        subtitle={<></>}
+        leftAction={
+          <button
+            onClick={onClose}
+            className="w-10 h-10 shrink-0 rounded-full bg-surface-container border border-outline/50 flex flex-col items-center justify-center hover:bg-on-surface/10 transition-colors mr-2 text-on-surface"
+          >
+            <ArrowLeft className="w-5 h-5 flex-shrink-0" />
+          </button>
+        }
+        actions={
+          <div className="flex items-center gap-3">
+             <div className="text-right">
+               <div className="text-sm font-bold tracking-wide">Namaste, Raju</div>
+               <div className="text-[10px] text-primary tracking-widest uppercase">{orbState}</div>
+             </div>
+             <div 
+               className="bg-surface-container rounded-full w-10 h-10 bg-center bg-cover border border-primary/20 shrink-0 shadow-[0_0_15px_rgba(0,255,65,0.2)]" 
+               style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB8co6hnZPQzuwm57Rb3mWqL-pCFnYiHakTLmoOyjHBmEswzhIoy6Xh7oK2uuW8F43fhACN8VinpJ_VAQmAQdS9v40XEk3izpHwazq4BunWQjJQgl5yNii2A_ZuhfjxNjJZhC59d3foq88D5IdPb1qHwI9CoUVQxR_A3NXgSXgwTN_y3P_mQl4mnIegRDFvOHdZSrgn8ISDZaq8HrGq486-i1HCg9lQJ94TGAEJANDwzKJ0oybRM-yGoOYAygjx59gBWDtRRLzt7IFy')" }}
+             >
+             </div>
+          </div>
+        }
+      />
 
       {/* Flowing Text Area */}
       <div className="flex-1 overflow-y-auto w-full pt-4 md:pt-10 md:max-w-4xl md:mx-auto z-20 scrollbar-thin flex flex-col items-center justify-start text-center">
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-light leading-[1.6] md:leading-[1.7] tracking-wide text-white transition-all duration-300">
+        <h1 className="text-2xl md:text-3xl lg:text-4xl font-light leading-[1.6] md:leading-[1.7] tracking-wide text-on-surface transition-all duration-300">
           {displayTitle}
         </h1>
         {isProcessing && !fullText && (
@@ -135,7 +150,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
 
       {/* Listening status and Orb */}
       <div className="h-[250px] md:h-[350px] w-full flex flex-col items-center justify-end relative pb-10 md:pb-16 mt-auto shrink-0">
-        <div className={`text-white/60 text-sm md:text-base font-medium mb-12 md:mb-16 transition-opacity duration-300 ${isListening ? 'animate-pulse opacity-100' : 'opacity-0'}`}>
+        <div className={`text-on-surface/60 text-sm md:text-base font-medium mb-12 md:mb-16 transition-opacity duration-300 ${isListening ? 'animate-pulse opacity-100' : 'opacity-0'}`}>
           {isProcessing ? 'Thinking...' : 'Tap orb to stop'}
         </div>
 
@@ -166,7 +181,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
                   <div
                     ref={(el) => { barRefs.current[i] = el; }}
                     className={`h-[2px] md:h-[3px] rounded-full transition-colors duration-500 origin-left
-                      ${orbState === 'idle' ? 'bg-white/20' :
+                      ${orbState === 'idle' ? 'bg-on-surface/20' :
                         orbState === 'listening' ? 'bg-primary shadow-[0_0_8px_rgba(0,255,65,0.9)]' :
                         'bg-tertiary shadow-[0_0_12px_rgba(128,255,180,0.9)]'}
                     `}

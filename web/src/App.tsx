@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { MainLayout } from "./components/MainLayout"
+import { BackgroundLayer } from "./components/BackgroundLayer"
 
 // Temporary imports until pages are fully implemented
 import { HomeDashboard } from "./pages/HomeDashboard"
@@ -11,6 +12,7 @@ import { ProfilePage } from "./pages/ProfilePage"
 export default function App() {
   return (
     <BrowserRouter>
+      <BackgroundLayer />
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         

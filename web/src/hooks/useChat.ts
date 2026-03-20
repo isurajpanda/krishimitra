@@ -36,13 +36,14 @@ export function useChat() {
     setStreamText("") 
 
     try {
-      const res = await fetch("http://localhost:3001/chat", {
+      const res = await fetch("http://localhost:3001/api/v0/ai-chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           messages: conversationHistory.current,
+          userId: localStorage.getItem("userId"), // Send userId for storage
         })
       })
 
@@ -86,7 +87,7 @@ export function useChat() {
 
     } catch (err) {
       console.error(err)
-      const errorMsg: Message = { id: Date.now().toString(), role: "ai", type: "text", content: "Signal lost. Connections to Sarvam AI interrupted.", time: now() }
+      const errorMsg: Message = { id: Date.now().toString(), role: "ai", type: "text", content: "Signal lost. Connections to AI assistant interrupted.", time: now() }
       setMessages(prev => [...prev, errorMsg])
     } finally {
       setIsStreaming(false)

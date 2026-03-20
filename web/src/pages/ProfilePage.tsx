@@ -1,28 +1,39 @@
 import { motion } from "framer-motion"
+import { TopAppBar } from "@/components/TopAppBar"
+import { useTheme } from "@/hooks/useTheme"
+import { 
+  Bell, 
+  Sun, 
+  Moon, 
+  MapPin, 
+  Tractor, 
+  Sprout, 
+  Leaf, 
+  PlusCircle, 
+  Waves, 
+  Bug, 
+  TrendingUp, 
+  Landmark, 
+  FlaskConical, 
+  HelpCircle, 
+  Share2, 
+  Star, 
+  LogOut, 
+  ChevronRight 
+} from "lucide-react"
 
 export function ProfilePage() {
+  const { toggleTheme, isDark } = useTheme()
   return (
-    <div className="text-on-surface font-body selection:bg-primary selection:text-on-primary antialiased min-h-screen pb-12 overflow-x-hidden">
-      {/* Background Decoration */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px]"></div>
-        <div className="absolute right-[-20%] top-[30%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[100px]"></div>
-      </div>
+    <div className="bg-transparent text-on-surface font-body selection:bg-primary selection:text-on-primary antialiased min-h-screen pb-12 overflow-x-hidden">
 
-      {/* Top App Bar */}
-      <header className="fixed top-0 left-0 right-0 z-50 p-4 max-w-4xl w-full mx-auto">
-        <div className="glass-panel rounded-full px-5 py-3 flex justify-between items-center shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full border border-primary/20 overflow-hidden bg-surface-container">
-              <img alt="Farmer Profile Picture" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWlzOafxSnZK7rWOqNYg2BiwXM31IP4Mo2r1C3BQsX4UMmeeDnV2fdG6pp7eEx4-6gNESb68YENKsOZOTM_fnE6IQKiYRdtxHG4eiwOqcYrlpqo6-D0rvzlut9ycOMoDYYACAqS2KvDo20PiFk8sUSywPnKko6OAlrZ6KCEYM80TqBCNjub7Xd9wkhvalXDDhy8vzWBwnnjrxkaW_T7MsLMtMZwXdRq7vnj9Wj1G9itG0FrLzi8I0HoUqK_K8W0f5zkTcHhEcmxdm1"/>
-            </div>
-            <h1 className="font-headline font-bold text-sm tracking-wide">Namaste, Raju <span className="text-primary">🌿</span></h1>
-          </div>
-          <button className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container border border-outline/50 text-on-surface hover:bg-white/5 transition-colors">
-            <span className="material-symbols-outlined">notifications</span>
+      <TopAppBar 
+        actions={
+          <button className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container border border-outline/50 text-on-surface hover:bg-on-surface/5 transition-colors">
+            <Bell className="w-5 h-5 text-on-surface-variant" />
           </button>
-        </div>
-      </header>
+        }
+      />
 
       <main className="relative z-10 max-w-4xl w-full mx-auto px-4 pt-24 pb-8 flex flex-col md:grid md:grid-cols-2 md:grid-flow-row-dense gap-6">
         {/* Profile Hero */}
@@ -34,9 +45,13 @@ export function ProfilePage() {
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[60px] -mr-16 -mt-16"></div>
           <div className="absolute top-4 right-4">
-            <button className="px-3 py-1.5 rounded-full bg-surface-container border border-outline/50 flex items-center gap-2 text-[10px] font-label uppercase tracking-widest text-on-surface-variant hover:bg-white/5 transition-colors">
-              <span className="material-symbols-outlined text-[14px]">dark_mode</span>
-              <span>Dark</span>
+            <button
+              onClick={toggleTheme}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              className="px-3 py-1.5 rounded-full bg-surface-container border border-outline/50 flex items-center gap-2 text-[10px] font-label uppercase tracking-widest text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 transition-all"
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              <span>{isDark ? "Light" : "Dark"}</span>
             </button>
           </div>
           <div className="flex flex-col items-center text-center">
@@ -49,7 +64,7 @@ export function ProfilePage() {
             <h2 className="font-headline text-3xl font-extrabold text-on-surface tracking-tight glow-text">Raju Singh</h2>
             <div className="flex items-center gap-2 mt-2">
               <div className="px-3 py-1 rounded-full bg-surface-container text-primary text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border border-primary/20">
-                <span className="material-symbols-outlined text-[14px]">location_on</span>
+                <MapPin className="w-3.5 h-3.5" />
                 Hoshiarpur, Punjab
               </div>
             </div>
@@ -66,7 +81,7 @@ export function ProfilePage() {
         >
           <div className="flex items-center justify-between px-2">
             <h3 className="font-headline text-[10px] font-black tracking-[0.2em] text-on-surface-variant uppercase">My Farm</h3>
-            <span className="material-symbols-outlined text-primary/40">agriculture</span>
+            <Tractor className="w-5 h-5 text-primary/40" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center">
@@ -87,7 +102,7 @@ export function ProfilePage() {
             <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <span className="material-symbols-outlined text-primary">grass</span>
+                  <Sprout className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-bold text-on-surface">North Field</p>
@@ -97,21 +112,21 @@ export function ProfilePage() {
               <div className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,65,0.2)]">Growing</div>
             </div>
             
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-white/5 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-outline/20 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/5">
-                  <span className="material-symbols-outlined text-on-surface-variant">eco</span>
+                <div className="w-10 h-10 rounded-xl bg-on-surface/5 flex items-center justify-center border border-outline/20">
+                  <Leaf className="w-5 h-5 text-on-surface-variant" />
                 </div>
                 <div>
                   <p className="font-bold text-on-surface">River Side</p>
                   <p className="text-xs text-on-surface-variant">Wheat • 7.3 Acres</p>
                 </div>
               </div>
-              <div className="px-2.5 py-1 rounded-full bg-surface-container border border-white/10 text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">Dormant</div>
+              <div className="px-2.5 py-1 rounded-full bg-surface-container border border-outline/20 text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">Dormant</div>
             </div>
             
             <button className="w-full p-4 rounded-2xl border border-dashed border-primary/20 bg-primary/5 flex items-center justify-center gap-2 text-primary/70 hover:bg-primary/10 hover:text-primary transition-all active:scale-[0.98]">
-              <span className="material-symbols-outlined text-lg">add_circle</span>
+              <PlusCircle className="w-5 h-5" />
               <span className="font-bold text-xs uppercase tracking-widest">Add New Field</span>
             </button>
           </div>
@@ -146,7 +161,7 @@ export function ProfilePage() {
             <div className="space-y-4 pt-4 border-t border-primary/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-primary">tsunami</span>
+                  <Waves className="w-5 h-5 text-primary" />
                   <span className="text-sm font-medium">Weather Alerts</span>
                 </div>
                 <div className="w-10 h-5 bg-primary/30 rounded-full relative p-0.5 border border-primary/50 cursor-pointer">
@@ -155,7 +170,7 @@ export function ProfilePage() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-error">pest_control</span>
+                  <Bug className="w-5 h-5 text-error" />
                   <span className="text-sm font-medium">Pest Warnings</span>
                 </div>
                 <div className="w-10 h-5 bg-error/30 rounded-full relative p-0.5 border border-error/50 cursor-pointer">
@@ -164,7 +179,7 @@ export function ProfilePage() {
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-tertiary">trending_up</span>
+                  <TrendingUp className="w-5 h-5 text-tertiary" />
                   <span className="text-sm font-medium">Market Trends</span>
                 </div>
                 <div className="w-10 h-5 bg-surface-container-high rounded-full relative p-0.5 border border-outline/50 cursor-pointer">
@@ -187,7 +202,7 @@ export function ProfilePage() {
             <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-primary/5 border border-primary/20 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-xl">account_balance</span>
+                  <Landmark className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-bold text-on-surface">PM-Kisan ID</p>
@@ -204,7 +219,7 @@ export function ProfilePage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-tertiary/10 border border-tertiary/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-tertiary">science</span>
+                    <FlaskConical className="w-5 h-5 text-tertiary" />
                   </div>
                   <div>
                     <p className="font-bold text-on-surface">Soil Health Card</p>
@@ -243,29 +258,29 @@ export function ProfilePage() {
         >
           <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container/50 border border-outline/20 hover:bg-surface-container hover:border-outline/40 transition-colors group">
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">help</span>
+              <HelpCircle className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
               <span className="font-medium text-sm">Help &amp; Support</span>
             </div>
-            <span className="material-symbols-outlined text-on-surface-variant text-sm group-hover:translate-x-1 transition-transform">chevron_right</span>
+            <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:translate-x-1 transition-transform" />
           </button>
           <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container/50 border border-outline/20 hover:bg-surface-container hover:border-outline/40 transition-colors group">
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">share</span>
+              <Share2 className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
               <span className="font-medium text-sm">Share with Farmers</span>
             </div>
-            <span className="material-symbols-outlined text-on-surface-variant text-sm group-hover:translate-x-1 transition-transform">chevron_right</span>
+            <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:translate-x-1 transition-transform" />
           </button>
           <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container/50 border border-outline/20 hover:bg-surface-container hover:border-outline/40 transition-colors group">
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">star</span>
+              <Star className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
               <span className="font-medium text-sm">Rate Application</span>
             </div>
-            <span className="material-symbols-outlined text-on-surface-variant text-sm group-hover:translate-x-1 transition-transform">chevron_right</span>
+            <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:translate-x-1 transition-transform" />
           </button>
           
           <button className="w-full flex items-center justify-between p-4 rounded-2xl border border-error/20 bg-error/5 hover:bg-error/10 transition-colors group mt-4">
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-error">logout</span>
+              <LogOut className="w-5 h-5 text-error" />
               <span className="font-bold text-error uppercase tracking-widest text-xs">Logout</span>
             </div>
             <div className="w-2 h-2 rounded-full bg-error shadow-[0_0_10px_rgba(255,59,48,0.6)]"></div>

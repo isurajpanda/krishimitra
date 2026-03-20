@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const SERVER_WS_URL = "ws://localhost:3001/voice";
+const SERVER_WS_URL = "ws://localhost:3001/api/v0/voice";
 // Number of chunks to accumulate before starting playback (gapless warmup)
 const PLAYBACK_PREBUFFER_COUNT = 10;
 // Startup scheduling offset in seconds — gives AudioContext time to warm up
@@ -242,7 +242,7 @@ export function useVoiceChat() {
     }
   };
 
-  // ── STT via Sarvam WebSocket ──────────────────────────────────────────────
+  // ── STT via AI WebSocket ──────────────────────────────────────────────
   const micStreamRef = useRef<MediaStream | null>(null);
   const micAudioCtxRef = useRef<AudioContext | null>(null);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);

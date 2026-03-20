@@ -1,15 +1,44 @@
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useTheme } from "@/hooks/useTheme"
+import { Sun, Moon, Leaf } from "lucide-react"
 
 export function AuthPage() {
   const [activeLang, setActiveLang] = useState("English")
+  const { toggleTheme, isDark } = useTheme()
   const [otpVisible, setOtpVisible] = useState(false)
-  const languages = ["हिंदी", "मराठी", "ਪੰਜਾਬੀ", "தமிழ்", "English"]
+  const languages = ["हिंदी", "मराठी", "ਪੰਜਾਬी", "தமிழ்", "English"]
+
+  const navigate = useNavigate()
+  const [phoneNumber, setPhoneNumber] = useState("")
+  const [isVerifying, setIsVerifying] = useState(false)
+  
+  const handleLogin = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) return
+    setIsVerifying(true)
+    try {
+      const res = await fetch("http://localhost:3001/api/v0/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        localStorage.setItem("userId", data.user.id)
+        localStorage.setItem("userPhone", data.user.phone_number)
+        navigate("/")
+      }
+    } catch (err) {
+      console.error("Login failed:", err)
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   return (
-    <div className="bg-background text-on-surface font-body overflow-hidden selection:bg-primary selection:text-on-primary antialiased min-h-[100dvh]">
-      {/* Hero Background Layer */}
+    <div className="bg-transparent text-on-surface font-body overflow-hidden selection:bg-primary selection:text-on-primary antialiased min-h-[100dvh]">
+      {/* Hero Background Layer (Decorations only) */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="firefly top-1/4 left-1/4" style={{ opacity: 0.4 }}></div>
         <div className="firefly top-1/3 right-1/4" style={{ opacity: 0.5 }}></div>
@@ -23,8 +52,12 @@ export function AuthPage() {
         <div className="flex justify-between items-center">
           <div className="w-10"></div>
           {/* Dark Mode Toggle */}
-          <button className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container text-on-surface border border-outline/50 shadow-lg">
-            <span className="material-symbols-outlined text-[20px]">dark_mode</span>
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container text-on-surface border border-outline/50 shadow-lg hover:bg-primary/10 hover:border-primary/30 transition-all"
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
         </div>
 
@@ -52,7 +85,7 @@ export function AuthPage() {
         <div className="relative mb-6">
           <div className="absolute inset-0 blur-3xl bg-primary/20 rounded-full"></div>
           <div className="relative w-24 h-24 flex items-center justify-center bg-surface-container border border-primary/20 rounded-[32px] rotate-45 transform glow-aura">
-            <span className="material-symbols-outlined text-primary text-5xl -rotate-45" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
+            <Leaf className="w-12 h-12 text-primary -rotate-45 fill-primary" />
           </div>
         </div>
 
@@ -113,6 +146,8 @@ export function AuthPage() {
                     maxLength={10} 
                     placeholder="Mobile Number" 
                     type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
                   />
                   <label className="absolute -top-3 left-6 px-2 bg-surface text-[10px] font-bold uppercase tracking-widest font-label text-primary border border-primary/20 rounded">
                       Mobile Number
@@ -154,12 +189,13 @@ export function AuthPage() {
                   </div>
                 </div>
 
-                <Link 
-                  to="/"
-                  className="block w-full text-center bg-primary text-on-primary font-headline font-bold py-4 rounded-full shadow-[0_0_30px_rgba(0,255,65,0.4)] hover:scale-[1.02] active:scale-95 transition-transform"
+                <button 
+                  onClick={handleLogin}
+                  disabled={isVerifying}
+                  className="block w-full text-center bg-primary text-on-primary font-headline font-bold py-4 rounded-full shadow-[0_0_30px_rgba(0,255,65,0.4)] hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-50"
                 >
-                    Verify & Login
-                </Link>
+                    {isVerifying ? "Verifying..." : "Verify & Login"}
+                </button>
               </motion.div>
             </AnimatePresence>
           )}
