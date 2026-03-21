@@ -1,9 +1,7 @@
 import "dotenv/config";
-import https from "https";
 import http from "http";
 import express from "express";
 import cors from "cors";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
@@ -18,7 +16,7 @@ import weatherRoutes from "./routes/weather.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080; // Standard Railway port
 
 // Initialize database
 initDb();
@@ -52,19 +50,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-let server;
-const certsPath = path.join(__dirname, "..", "certs");
-const keyPath = path.join(certsPath, "key.pem");
-
-if (fs.existsSync(keyPath)) {
-  const options = {
-    key: fs.readFileSync(keyPath),
-    cert: fs.readFileSync(path.join(certsPath, "cert.pem")),
-  };
-  server = https.createServer(options, app);
-} else {
-  server = http.createServer(app);
-}
+const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/api/v0/voice" });
 
 wss.on("connection", (browserWs, req) => {
@@ -76,6 +62,5 @@ wss.on("connection", (browserWs, req) => {
 });
 
 server.listen(PORT, () => {
-  const protocol = isProd ? "http" : "https";
-  console.log(`\n🚀 KrishiMitra Backend running at ${protocol}://localhost:${PORT}`);
+  console.log(`\n🚀 KrishiMitra Backend running at http://localhost:${PORT}`);
 });
