@@ -7,20 +7,17 @@ import {
   Cloud, 
   Sun, 
   CloudRain, 
+  CloudSnow,
+  CloudFog,
   CheckCircle2, 
   Sprout, 
-  Tractor, 
-  TrendingUp, 
-  Bug, 
-  ArrowRight,
-  Flower2,
-  Flower,
-  Leaf,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { API_BASE_URL } from "@/config"
+import { useNavigate } from "react-router-dom"
 
 interface WeatherData {
   temp: number;
@@ -28,15 +25,42 @@ interface WeatherData {
   humidity: number;
   windSpeed: number;
   rain: number;
+  icon: string;
+}
+
+interface ForecastItem {
+  time: string;
+  temp: number;
+  description: string;
+  icon: string;
+}
+
+// Map OpenWeatherMap icon codes to Lucide icons
+function getWeatherIcon(iconCode: string, className: string) {
+  if (iconCode.startsWith("01") || iconCode.startsWith("02")) return <Sun className={className} />
+  if (iconCode.startsWith("03") || iconCode.startsWith("04")) return <Cloud className={className} />
+  if (iconCode.startsWith("09") || iconCode.startsWith("10")) return <CloudRain className={className} />
+  if (iconCode.startsWith("13")) return <CloudSnow className={className} />
+  if (iconCode.startsWith("50")) return <CloudFog className={className} />
+  return <CloudSun className={className} />
 }
 
 export function HomeDashboard() {
   const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [forecast, setForecast] = useState<ForecastItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userCrops, setUserCrops] = useState<string[]>([])
+  const navigate = useNavigate()
 
   useEffect(() => {
-    const fetchWeather = async () => {
+    // Load user crops from localStorage
+    const crops = localStorage.getItem("userCrops")
+    if (crops) {
+      setUserCrops(crops.split(", ").filter(Boolean))
+    }
+
+    const fetchWeatherAndForecast = async () => {
       const lat = localStorage.getItem("userLat")
       const lon = localStorage.getItem("userLon")
 
@@ -47,18 +71,33 @@ export function HomeDashboard() {
       }
 
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/weather?lat=${lat}&lon=${lon}`
-        )
-        if (!res.ok) throw new Error("Failed to fetch weather")
-        const data = await res.json()
+        // Fetch current weather and forecast in parallel
+        const [weatherRes, forecastRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/weather?lat=${lat}&lon=${lon}`),
+          fetch(`${API_BASE_URL}/forecast?lat=${lat}&lon=${lon}`)
+        ])
+
+        if (!weatherRes.ok) throw new Error("Failed to fetch weather")
+        const weatherData = await weatherRes.json()
         setWeather({
-          temp: Math.round(data.main.temp),
-          description: data.weather[0].main,
-          humidity: data.main.humidity,
-          windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
-          rain: data.rain ? data.rain["1h"] || 0 : 0
+          temp: Math.round(weatherData.main.temp),
+          description: weatherData.weather[0].main,
+          humidity: weatherData.main.humidity,
+          windSpeed: Math.round(weatherData.wind.speed * 3.6),
+          rain: weatherData.rain ? weatherData.rain["1h"] || 0 : 0,
+          icon: weatherData.weather[0].icon
         })
+
+        if (forecastRes.ok) {
+          const forecastData = await forecastRes.json()
+          const items: ForecastItem[] = (forecastData.list || []).slice(0, 5).map((item: any) => ({
+            time: new Date(item.dt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+            temp: Math.round(item.main.temp),
+            description: item.weather[0].main,
+            icon: item.weather[0].icon
+          }))
+          setForecast(items)
+        }
       } catch (err) {
         console.error(err)
         setError("Weather data unavailable")
@@ -67,8 +106,9 @@ export function HomeDashboard() {
       }
     }
 
-    fetchWeather()
+    fetchWeatherAndForecast()
   }, [])
+
   return (
     <div className="font-body text-on-surface flex flex-col antialiased max-w-5xl mx-auto w-full pt-20">
       {/* Top Bar */}
@@ -102,7 +142,7 @@ export function HomeDashboard() {
                     </h2>
                     <p className="font-headline text-xl font-medium text-on-surface mt-2">{weather?.description}</p>
                   </div>
-                  <CloudSun className="w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)] ml-4 shrink-0" />
+                  {weather?.icon ? getWeatherIcon(weather.icon, "w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)] ml-4 shrink-0") : <CloudSun className="w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)] ml-4 shrink-0" />}
                 </div>
                 
                 <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide relative z-10 w-full">
@@ -122,152 +162,117 @@ export function HomeDashboard() {
               </>
             )}
             
-            <div className="flex justify-between items-end border-t border-primary/10 pt-4 relative z-10 mt-auto">
-              <div className="flex justify-between w-full">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-on-surface-variant">Now</span>
-                  <Cloud className="w-5 h-5 text-on-surface-variant" />
-                  <span className="font-label text-sm">{weather?.temp}°</span>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-on-surface-variant">12 PM</span>
-                  <Sun className="w-5 h-5 text-on-surface-variant" />
-                  <span className="font-label text-sm">{weather ? weather.temp + 2 : "--"}°</span>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-on-surface-variant">3 PM</span>
-                  <Sun className="w-5 h-5 text-on-surface-variant" />
-                  <span className="font-label text-sm">{weather ? weather.temp + 3 : "--"}°</span>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-on-surface-variant text-primary">6 PM</span>
-                  <CloudRain className="w-5 h-5 text-primary" />
-                  <span className="font-label text-sm text-primary">{weather ? weather.temp - 1 : "--"}°</span>
+            {/* Real Forecast Row */}
+            {forecast.length > 0 && (
+              <div className="flex justify-between items-end border-t border-primary/10 pt-4 relative z-10 mt-auto">
+                <div className="flex justify-between w-full">
+                  {forecast.map((item, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <span className="text-xs text-on-surface-variant">{i === 0 ? "Next" : item.time}</span>
+                      {getWeatherIcon(item.icon, "w-5 h-5 text-on-surface-variant")}
+                      <span className="font-label text-sm">{item.temp}°</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
             
             {/* Advisory Band */}
-            <div className="mt-6 bg-primary/10 rounded-xl p-3 flex items-center gap-3 border border-primary/30 glow-box-primary relative z-10 w-full">
-              <CheckCircle2 className="w-5 h-5 text-primary" />
-              <span className="text-sm font-bold text-primary tracking-wide">
-                {weather && weather.rain > 0 ? "Rain expected, pause irrigation" : "Good day to irrigate"}
-              </span>
-            </div>
+            {weather && (
+              <div className="mt-6 bg-primary/10 rounded-xl p-3 flex items-center gap-3 border border-primary/30 glow-box-primary relative z-10 w-full">
+                <CheckCircle2 className="w-5 h-5 text-primary" />
+                <span className="text-sm font-bold text-primary tracking-wide">
+                  {weather.rain > 0 ? "Rain expected, pause irrigation" : weather.humidity > 80 ? "High humidity, watch for fungal growth" : "Good day to irrigate"}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Tile B: My Field (Left) */}
-          <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-2xl p-5 flex flex-col justify-between">
+          {/* Tile B: My Crops (from DB) */}
+          <div className="col-span-2 md:col-span-4 lg:col-span-2 glass-panel rounded-2xl p-5 flex flex-col">
             <div className="flex justify-between items-start mb-4">
-              <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
-                <Sprout className="w-5 h-5 text-primary" />
-              </div>
-              <span className="bg-primary/20 text-primary text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Wheat</span>
-            </div>
-            
-            <div className="relative w-24 h-24 mx-auto mb-4">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle className="text-on-surface/5" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" strokeWidth="8"></circle>
-                <circle 
-                   className="text-primary drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]" 
-                   cx="50" cy="50" fill="transparent" r="40" 
-                   stroke="currentColor" strokeDasharray="251" strokeDashoffset="150" strokeLinecap="round" strokeWidth="8">
-                </circle>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-label text-xl font-bold text-on-surface glow-text">38%</span>
-              </div>
-            </div>
-            
-            <div className="text-center">
-              <p className="font-label text-sm text-on-surface-variant mb-1">Day 34 of 90</p>
-              <div className="inline-flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                On Track
-              </div>
-            </div>
-          </div>
-
-          {/* Tile C: Market Price (Right) */}
-          <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-2xl p-5 flex flex-col justify-between">
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
-                <Tractor className="w-5 h-5 text-primary" />
-              </div>
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse mt-1"></div>
-            </div>
-            
-            <div>
-              <h3 className="font-headline text-sm font-medium text-on-surface-variant mb-1">Wheat (Lokwan)</h3>
-              <p className="font-label text-2xl font-bold text-on-surface mb-2 tracking-tight">₹2,450</p>
-              <p className="text-xs text-on-surface-variant mb-4">per quintal</p>
-            </div>
-            
-            <div className="flex items-center gap-1 text-primary bg-primary/10 self-start px-2 py-1 rounded-md text-xs font-bold border border-primary/20">
-              <TrendingUp className="w-3.5 h-3.5" />
-              +2.4%
-            </div>
-          </div>
-
-          {/* Tile D: Pest Alert (Full Width) */}
-          <div className="col-span-2 md:col-span-4 glass-panel rounded-2xl p-5 border-l-4 border-l-error relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-error/10 to-transparent pointer-events-none"></div>
-            <div className="flex items-center justify-between relative z-10 w-full">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center border border-error/30 shrink-0 text-error">
-                  <Bug className="w-6 h-6" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-primary/10">
+                  <Sprout className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-headline font-bold text-error glow-text-error">Pest Alert</h3>
-                    <span className="bg-error/20 text-error text-[10px] font-bold px-1.5 py-0.5 rounded-sm uppercase">High</span>
-                  </div>
-                  <p className="text-sm text-on-surface-variant font-medium">Fall Armyworm detected in region.</p>
+                  <h3 className="font-headline font-bold text-on-surface">My Crops</h3>
+                  <p className="text-xs text-on-surface-variant">{userCrops.length} active crop{userCrops.length !== 1 ? "s" : ""}</p>
                 </div>
               </div>
-              <button className="bg-surface-container/50 border border-error/30 text-error rounded-full w-10 h-10 flex items-center justify-center hover:bg-error/10 transition-colors shrink-0">
-                <ArrowRight className="w-5 h-5" />
-              </button>
             </div>
+            
+            {userCrops.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {userCrops.map((crop, i) => (
+                  <div key={i} className="px-4 py-2 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-2">
+                    <Sprout className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-sm font-bold text-primary">{crop}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-on-surface-variant text-sm">
+                No crops listed yet.
+                <button onClick={() => navigate("/profile")} className="text-primary font-bold ml-1 hover:underline">
+                  Add crops →
+                </button>
+              </div>
+            )}
+
+            <button 
+              onClick={() => navigate("/crops")}
+              className="mt-auto w-full py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary/20 transition-all"
+            >
+              <Sparkles className="w-4 h-4" />
+              Get Crop Recommendations
+            </button>
           </div>
 
         </div>
 
-        {/* Market Snapshot Strip */}
+        {/* Quick Actions */}
         <div className="mt-2 text-left">
-          <h3 className="font-headline font-bold text-on-surface mb-3 px-1 text-sm tracking-widest uppercase">Market Snapshot</h3>
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-            
-            <div className="glass-panel rounded-xl p-3 min-w-[140px] flex-shrink-0 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-primary/10 shrink-0">
-                <Flower2 className="w-4 h-4 text-primary" />
+          <h3 className="font-headline font-bold text-on-surface mb-3 px-1 text-sm tracking-widest uppercase">Quick Actions</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <button 
+              onClick={() => navigate("/crops")}
+              className="glass-panel rounded-xl p-4 flex items-center gap-3 hover:bg-primary/5 transition-all active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-on-surface">Soybean</p>
-                <p className="font-label text-xs text-primary">₹4,200 <span className="text-[10px] text-on-surface-variant ml-1">↑</span></p>
+              <div className="text-left">
+                <p className="text-sm font-bold text-on-surface">Crop Intel</p>
+                <p className="text-[10px] text-on-surface-variant">AI Recommendations</p>
               </div>
-            </div>
-            
-            <div className="glass-panel rounded-xl p-3 min-w-[140px] flex-shrink-0 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-primary/10 shrink-0">
-                <Flower className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-on-surface">Cotton</p>
-                <p className="font-label text-xs text-primary">₹7,150 <span className="text-[10px] text-on-surface-variant ml-1">↑</span></p>
-              </div>
-            </div>
-            
-            <div className="glass-panel rounded-xl p-3 min-w-[140px] flex-shrink-0 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center border border-primary/10 shrink-0">
-                <Leaf className="w-4 h-4 text-error" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-on-surface">Maize</p>
-                <p className="font-label text-xs text-error">₹2,100 <span className="text-[10px] text-on-surface-variant ml-1">↓</span></p>
-              </div>
-            </div>
+            </button>
 
+            <button 
+              onClick={() => navigate("/notifications")}
+              className="glass-panel rounded-xl p-4 flex items-center gap-3 hover:bg-primary/5 transition-all active:scale-[0.98]"
+            >
+              <div className="w-10 h-10 rounded-full bg-tertiary/10 flex items-center justify-center border border-tertiary/20 shrink-0">
+                <AlertCircle className="w-5 h-5 text-tertiary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-on-surface">Advisories</p>
+                <p className="text-[10px] text-on-surface-variant">AI Farm Alerts</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => navigate("/profile")}
+              className="glass-panel rounded-xl p-4 flex items-center gap-3 hover:bg-primary/5 transition-all active:scale-[0.98] col-span-2 md:col-span-1"
+            >
+              <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center border border-secondary/20 shrink-0">
+                <Sprout className="w-5 h-5 text-secondary" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-on-surface">My Farm</p>
+                <p className="text-[10px] text-on-surface-variant">Profile & Settings</p>
+              </div>
+            </button>
           </div>
         </div>
       </main>

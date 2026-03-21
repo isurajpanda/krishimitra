@@ -1,25 +1,127 @@
-import { useState } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect, useCallback } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { TopAppBar } from "@/components/TopAppBar"
 import { useTheme } from "@/hooks/useTheme"
 import { 
   Sun, 
   Moon, 
   AlertTriangle, 
-  Sparkles, 
-  FileText, 
-  TrendingUp, 
-  Lightbulb, 
+  CloudSun,
   Sprout, 
-  Store, 
-  Info, 
-  MoreHorizontal 
+  Lightbulb, 
+  Loader2,
+  RefreshCw,
+  Check,
+  AlertCircle,
+  Leaf,
+  Droplets
 } from "lucide-react"
+import { API_BASE_URL } from "@/config"
+
+interface Notification {
+  id: number;
+  category: string;
+  priority: string;
+  title: string;
+  body: string;
+  timeAgo: string;
+}
+
+const categoryIcons: Record<string, any> = {
+  weather: CloudSun,
+  crop: Sprout,
+  advisory: Lightbulb,
+  seasonal: Leaf,
+  irrigation: Droplets
+}
+
+const priorityStyles: Record<string, { border: string, badge: string, icon: string }> = {
+  high: { border: "border-l-error", badge: "bg-error/10 text-error border-error/20", icon: "text-error" },
+  medium: { border: "border-l-primary", badge: "bg-primary/10 text-primary border-primary/20", icon: "text-primary" },
+  low: { border: "border-l-outline", badge: "bg-surface-container text-on-surface-variant border-outline/20", icon: "text-on-surface-variant" }
+}
 
 export function NotificationsPage() {
   const [activeFilter, setActiveFilter] = useState("All")
   const { toggleTheme, isDark } = useTheme()
-  const filters = ["All", "Weather", "Pest", "Market", "Schemes", "Advisory"]
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [readIds, setReadIds] = useState<number[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("readNotifications") || "[]")
+    } catch { return [] }
+  })
+
+  const filters = ["All", "Weather", "Crop", "Advisory", "Seasonal"]
+
+  const fetchNotifications = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      // Gather context for AI
+      const lat = localStorage.getItem("userLat")
+      const lon = localStorage.getItem("userLon")
+      const crops = (localStorage.getItem("userCrops") || "").split(", ").filter(Boolean)
+      const location = localStorage.getItem("userLocation") || ""
+
+      let weatherContext = {}
+      if (lat && lon) {
+        try {
+          const weatherRes = await fetch(`${API_BASE_URL}/weather?lat=${lat}&lon=${lon}`)
+          if (weatherRes.ok) {
+            const data = await weatherRes.json()
+            weatherContext = {
+              temp: Math.round(data.main.temp),
+              humidity: data.main.humidity,
+              description: data.weather[0].main,
+              wind: Math.round(data.wind.speed * 3.6),
+              rain: data.rain ? data.rain["1h"] || 0 : 0
+            }
+          }
+        } catch { /* proceed without weather */ }
+      }
+
+      const res = await fetch(`${API_BASE_URL}/notifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weather: weatherContext,
+          crops,
+          location
+        })
+      })
+
+      if (!res.ok) throw new Error("Failed to load advisories")
+      const data = await res.json()
+      setNotifications(data.notifications || [])
+    } catch (err) {
+      console.error(err)
+      setError("Unable to load advisories. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
+
+  const toggleRead = (id: number) => {
+    const newReadIds = readIds.includes(id) ? readIds.filter(r => r !== id) : [...readIds, id]
+    setReadIds(newReadIds)
+    localStorage.setItem("readNotifications", JSON.stringify(newReadIds))
+  }
+
+  const markAllRead = () => {
+    const allIds = notifications.map(n => n.id)
+    setReadIds(allIds)
+    localStorage.setItem("readNotifications", JSON.stringify(allIds))
+  }
+
+  const filtered = activeFilter === "All" 
+    ? notifications 
+    : notifications.filter(n => n.category.toLowerCase() === activeFilter.toLowerCase())
 
   return (
     <div className="bg-transparent text-on-surface font-body min-h-screen pb-12 overflow-x-hidden antialiased">
@@ -32,14 +134,26 @@ export function NotificationsPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-primary shadow-[0_0_8px_rgba(0,255,65,1)]"></span>
             </span>
-            <h1 className="font-headline font-bold text-lg tracking-tight text-primary glow-text">ALERTS</h1>
+            <h1 className="font-headline font-bold text-lg tracking-tight text-primary glow-text">ADVISORIES</h1>
           </div>
         }
         title={<></>}
         subtitle={<></>}
         actions={
-          <div className="flex items-center gap-4">
-            <button className="text-[10px] sm:text-xs font-label tracking-widest text-on-surface-variant hover:text-primary transition-colors font-bold">MARK ALL READ</button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={fetchNotifications}
+              disabled={isLoading}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-surface-container flex items-center justify-center cursor-pointer border border-outline/50 hover:bg-primary/10 hover:border-primary/30 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+            </button>
+            <button 
+              onClick={markAllRead}
+              className="text-[10px] sm:text-xs font-label tracking-widest text-on-surface-variant hover:text-primary transition-colors font-bold"
+            >
+              MARK ALL READ
+            </button>
             <button
               onClick={toggleTheme}
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
@@ -70,158 +184,109 @@ export function NotificationsPage() {
           ))}
         </div>
 
-        {/* Bento Priority Alerts */}
-        <motion.div 
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Critical Alert Tile */}
-          <div className="col-span-2 glass-panel rounded-2xl p-6 border-l-4 border-l-error relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-error/5 blur-3xl pointer-events-none"></div>
-            <div className="flex justify-between items-start mb-4 relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-error/10 rounded-xl flex items-center justify-center border border-error/30">
-                  <AlertTriangle className="w-5 h-5 text-error animate-pulse" />
-                </div>
-                <span className="font-label text-error text-[10px] tracking-widest uppercase font-bold">Critical Weather</span>
-              </div>
-              <span className="font-label text-on-surface-variant text-[10px]">Just Now</span>
-            </div>
-            <h2 className="font-headline font-bold text-xl text-on-surface mb-2 leading-tight relative z-10">Flash Flood Warning: Heavy precipitation expected in 2 hours.</h2>
-            <p className="font-body text-on-surface-variant text-sm mb-6 relative z-10">Secure irrigation equipment and clear drainage channels in North-East blocks.</p>
-            <div className="flex items-center justify-between relative z-10">
-              <button className="bg-error/20 text-error border border-error/30 px-6 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-transform active:scale-95 hover:bg-error/30">Emergency Action</button>
-              <div className="w-1/3 h-1 bg-surface-container rounded-full overflow-hidden">
-                <div className="h-full bg-error w-3/4 rounded-full shadow-[0_0_8px_rgba(255,59,48,0.5)]"></div>
-              </div>
+        {/* AI Badge */}
+        <div className="mb-6 flex items-center gap-2 px-1">
+          <Lightbulb className="w-4 h-4 text-primary" />
+          <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">
+            AI-Generated Advisories based on your location, weather & crops
+          </span>
+        </div>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center gap-4 py-16">
+            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            <div className="text-center">
+              <p className="text-on-surface font-bold">Analyzing your farm conditions...</p>
+              <p className="text-on-surface-variant text-sm mt-1">Generating personalized advisories with AI</p>
             </div>
           </div>
+        )}
 
-          {/* Scheme Spotlight */}
-          <div className="col-span-2 glass-panel rounded-2xl p-6 bg-gradient-to-br from-primary/5 to-transparent overflow-hidden">
-            <div className="relative z-10 flex flex-col h-full justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="font-label text-primary text-[10px] tracking-widest uppercase font-bold">Spotlight</span>
-                </div>
-                <h3 className="font-headline font-bold text-lg text-on-surface">PM-Kisan 15th Installment Enrollment</h3>
-                <p className="font-label text-primary text-xs mt-2 font-bold tracking-tight glow-text uppercase">18 DAYS LEFT</p>
-              </div>
-              <button className="mt-6 w-fit bg-primary text-on-primary px-6 py-2 rounded-full font-bold text-sm shadow-[0_0_15px_rgba(0,255,65,0.4)] transition-all active:scale-95 hover:scale-[1.02]">Apply Now</button>
-            </div>
-            <div className="absolute right-[-10px] bottom-[-10px] opacity-10 pointer-events-none">
-              <FileText className="w-[140px] h-[140px] text-primary rotate-12" />
-            </div>
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="flex flex-col items-center justify-center gap-4 py-16">
+            <AlertCircle className="w-10 h-10 text-error" />
+            <p className="text-error font-bold">{error}</p>
+            <button 
+              onClick={fetchNotifications}
+              className="px-6 py-2 rounded-full bg-primary text-on-primary font-bold text-sm"
+            >
+              Retry
+            </button>
           </div>
+        )}
 
-          {/* Market Flash Tile */}
-          <div className="col-span-1 md:col-span-2 glass-panel rounded-2xl p-5 flex flex-col justify-between">
-            <div>
-              <span className="font-label text-primary text-[10px] tracking-widest uppercase font-bold">Wheat Market</span>
-              <div className="flex items-baseline gap-1 mt-1">
-                <h4 className="font-headline font-bold text-2xl text-on-surface tracking-tighter">₹2,450</h4>
-                <span className="font-label text-primary text-[10px] font-bold">+12%</span>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-on-surface-variant">
-              <TrendingUp className="w-4 h-4" />
-              <span className="text-[10px] font-label font-medium uppercase">Record High</span>
-            </div>
-          </div>
+        {/* Notifications List */}
+        {!isLoading && !error && (
+          <AnimatePresence>
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.1 }
+                }
+              }}
+            >
+              {filtered.length === 0 && (
+                <motion.div 
+                  className="col-span-full text-center py-12"
+                  variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+                >
+                  <Lightbulb className="w-12 h-12 text-primary/30 mx-auto mb-4" />
+                  <p className="text-on-surface-variant">No {activeFilter.toLowerCase()} advisories right now.</p>
+                </motion.div>
+              )}
 
-          {/* Advisory Quick Link */}
-          <div className="col-span-1 md:col-span-2 glass-panel rounded-2xl p-5 flex flex-col justify-between">
-            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center mb-2 border border-primary/20">
-              <Lightbulb className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-headline font-bold text-sm text-on-surface">AI Soil Insight</h4>
-              <p className="font-body text-[11px] text-on-surface-variant mt-1 leading-tight">Nitrogen levels optimal for Rabi...</p>
-            </div>
-          </div>
-        </motion.div>
+              {filtered.map((notif) => {
+                const IconComponent = categoryIcons[notif.category] || Lightbulb
+                const styles = priorityStyles[notif.priority] || priorityStyles.low
+                const isRead = readIds.includes(notif.id)
 
-        {/* Linear Feed */}
-        <h3 className="font-label text-[10px] tracking-widest text-on-surface-variant uppercase font-bold mb-4 px-1">Recent Updates</h3>
-        
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: {
-              opacity: 1,
-              transition: { staggerChildren: 0.1, delayChildren: 0.3 }
-            }
-          }}
-        >
-          {/* Update Card 1 */}
-          <motion.div 
-            variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
-            className="glass-panel rounded-2xl p-4 flex gap-4 border-l-4 border-l-primary/40"
-          >
-            <div className="h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border border-primary/10">
-              <Sprout className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <span className="font-label text-[10px] text-on-surface-variant font-medium">45 mins ago</span>
-                <span className="bg-primary/10 text-primary text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border border-primary/20">Crops</span>
-              </div>
-              <h5 className="font-headline font-bold text-on-surface text-sm mt-1">Soya Bean pest control window opening soon.</h5>
-              <div className="flex justify-between items-center mt-3">
-                <button className="text-primary font-bold text-[11px] hover:underline uppercase tracking-wide">Read more</button>
-                <MoreHorizontal className="w-5 h-5 text-on-surface-variant" />
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Update Card 2 */}
-          <motion.div 
-            variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
-            className="glass-panel rounded-2xl p-4 flex gap-4 border-l-4 border-l-secondary/40"
-          >
-            <div className="h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border border-secondary/10">
-              <Store className="w-6 h-6 text-secondary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <span className="font-label text-[10px] text-on-surface-variant font-medium">3 hours ago</span>
-                <span className="bg-secondary/10 text-secondary text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border border-secondary/20">Market</span>
-              </div>
-              <h5 className="font-headline font-bold text-on-surface text-sm mt-1">Mandi price fluctuation alert: Mustard seeds up by ₹40.</h5>
-              <div className="flex justify-between items-center mt-3">
-                <button className="text-secondary font-bold text-[11px] hover:underline uppercase tracking-wide">Read more</button>
-                <MoreHorizontal className="w-5 h-5 text-on-surface-variant" />
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Update Card 3 */}
-          <motion.div 
-            variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
-            className="glass-panel rounded-2xl p-4 flex gap-4 border-l-4 border-l-primary/20"
-          >
-            <div className="h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border border-outline/30">
-              <Info className="w-6 h-6 text-on-surface-variant" />
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <span className="font-label text-[10px] text-on-surface-variant font-medium">Yesterday</span>
-                <span className="bg-surface-container text-on-surface-variant text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border border-outline/30">System</span>
-              </div>
-              <h5 className="font-headline font-bold text-on-surface text-sm mt-1">Monthly harvest report is now available for download.</h5>
-              <div className="flex justify-between items-center mt-3">
-                <button className="text-on-surface-variant font-bold text-[11px] hover:underline uppercase tracking-wide">Read more</button>
-                <MoreHorizontal className="w-5 h-5 text-on-surface-variant" />
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
+                return (
+                  <motion.div 
+                    key={notif.id}
+                    variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+                    className={`glass-panel rounded-2xl p-4 flex gap-4 border-l-4 ${styles.border} ${isRead ? "opacity-60" : ""} transition-opacity`}
+                  >
+                    <div className={`h-12 w-12 shrink-0 bg-surface-container rounded-xl flex items-center justify-center border ${notif.priority === "high" ? "border-error/20" : "border-primary/10"}`}>
+                      <IconComponent className={`w-6 h-6 ${styles.icon}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border ${styles.badge} shrink-0`}>
+                          {notif.category}
+                        </span>
+                        <span className="font-label text-[10px] text-on-surface-variant font-medium shrink-0">{notif.timeAgo}</span>
+                      </div>
+                      <h5 className="font-headline font-bold text-on-surface text-sm mt-2 line-clamp-2">{notif.title}</h5>
+                      <p className="text-xs text-on-surface-variant mt-1 line-clamp-2">{notif.body}</p>
+                      <div className="flex justify-between items-center mt-3">
+                        {notif.priority === "high" && (
+                          <div className="flex items-center gap-1 text-error">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span className="text-[10px] font-bold uppercase">Action Needed</span>
+                          </div>
+                        )}
+                        <button 
+                          onClick={() => toggleRead(notif.id)}
+                          className={`text-[11px] font-bold flex items-center gap-1 ml-auto ${isRead ? "text-on-surface-variant" : "text-primary"} hover:underline uppercase tracking-wide`}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          {isRead ? "Read" : "Mark read"}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </main>
     </div>
   )

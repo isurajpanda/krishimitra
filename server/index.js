@@ -10,11 +10,16 @@ import crypto from "crypto";
 const { Pool } = pkg;
 import { WebSocketServer } from "ws";
 import { VoiceSession, StreamingThinkStripper } from "./voice-session.js";
+import OpenAI from "openai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
+const openai = new OpenAI({
+  apiKey: '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',
+  baseURL: 'https://integrate.api.nvidia.com/v1',
+});
 const SYSTEM_PROMPT = 
   "You are KrishiMitra, a friendly AI assistant for Indian farmers. " +
   "Always respond in the same language the user writes in, using that language's native characters and script only. " +
@@ -85,10 +90,35 @@ async function initDb() {
         location VARCHAR(200),
         farm_type VARCHAR(100),
         primary_crops TEXT[],
+        preferred_language VARCHAR(50) DEFAULT 'English',
+        lat DECIMAL(10, 8),
+        lon DECIMAL(11, 8),
+        units VARCHAR(10) DEFAULT 'Metric',
+        weather_alerts BOOLEAN DEFAULT TRUE,
+        pest_warnings BOOLEAN DEFAULT TRUE,
+        market_trends BOOLEAN DEFAULT TRUE,
+        state VARCHAR(100) DEFAULT 'Maharashtra',
+        district VARCHAR(100) DEFAULT 'Pune',
         onboarded BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Add new columns if they don't exist (for existing DBs)
+    const newCols = [
+      { name: 'lon', type: 'DOUBLE PRECISION' },
+      { name: 'preferred_language', type: "VARCHAR(20) DEFAULT 'English'" },
+      { name: 'units', type: "VARCHAR(20) DEFAULT 'Metric'" },
+      { name: 'weather_alerts', type: 'BOOLEAN DEFAULT TRUE' },
+      { name: 'pest_warnings', type: 'BOOLEAN DEFAULT TRUE' },
+      { name: 'district', type: "VARCHAR(100) DEFAULT 'Pune'" },
+      { name: 'state', type: "VARCHAR(100) DEFAULT 'Maharashtra'" },
+      { name: 'market_trends', type: 'BOOLEAN DEFAULT FALSE' },
+    ];
+    for (const col of newCols) {
+      try {
+        await finalClient.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+      } catch (e) { /* column already exists */ }
+    }
     await finalClient.query(`
       CREATE TABLE IF NOT EXISTS chat_history (
         id SERIAL PRIMARY KEY,
@@ -179,7 +209,10 @@ apiV0.post("/auth/login", async (req, res) => {
 apiV0.get("/auth/profile/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
-    const result = await pool.query("SELECT id, name, email, location, farm_type, primary_crops, onboarded FROM users WHERE id = $1", [userId]);
+    const result = await pool.query(
+      "SELECT id, name, email, location, lat, lon, farm_type, primary_crops, preferred_language, state, district, units, weather_alerts, pest_warnings, market_trends, onboarded FROM users WHERE id = $1",
+      [userId]
+    );
     if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
     res.json(result.rows[0]);
   } catch (err) {
@@ -191,7 +224,7 @@ apiV0.get("/auth/profile/:userId", async (req, res) => {
 // Update Profile (Onboarding & Profile Page)
 apiV0.patch("/auth/profile/:userId", async (req, res) => {
   const { userId } = req.params;
-  const { name, location, farmType, primaryCrops } = req.body;
+  const { name, location, state, district, lat, lon, farmType, primaryCrops, preferredLanguage, units, weatherAlerts, pestWarnings, marketTrends } = req.body;
 
   try {
     // Dynamically build update query to handle partial updates
@@ -201,8 +234,17 @@ apiV0.patch("/auth/profile/:userId", async (req, res) => {
 
     if (name !== undefined) { updates.push(`name = $${idx++}`); values.push(name); }
     if (location !== undefined) { updates.push(`location = $${idx++}`); values.push(location); }
+    if (state !== undefined) { updates.push(`state = $${idx++}`); values.push(state); }
+    if (district !== undefined) { updates.push(`district = $${idx++}`); values.push(district); }
+    if (lat !== undefined) { updates.push(`lat = $${idx++}`); values.push(lat); }
+    if (lon !== undefined) { updates.push(`lon = $${idx++}`); values.push(lon); }
     if (farmType !== undefined) { updates.push(`farm_type = $${idx++}`); values.push(farmType); }
     if (primaryCrops !== undefined) { updates.push(`primary_crops = $${idx++}`); values.push(primaryCrops); }
+    if (preferredLanguage !== undefined) { updates.push(`preferred_language = $${idx++}`); values.push(preferredLanguage); }
+    if (units !== undefined) { updates.push(`units = $${idx++}`); values.push(units); }
+    if (weatherAlerts !== undefined) { updates.push(`weather_alerts = $${idx++}`); values.push(weatherAlerts); }
+    if (pestWarnings !== undefined) { updates.push(`pest_warnings = $${idx++}`); values.push(pestWarnings); }
+    if (marketTrends !== undefined) { updates.push(`market_trends = $${idx++}`); values.push(marketTrends); }
     
     // Always mark as onboarded if it was a profile update
     updates.push(`onboarded = TRUE`);
@@ -342,6 +384,149 @@ apiV0.get("/weather", async (req, res) => {
   } catch (err) {
     console.error("[Weather Proxy Error]:", err);
     res.status(500).json({ error: "Failed to fetch weather data" });
+  }
+});
+
+// Forecast Proxy Endpoint (5-day/3-hour forecast, free tier)
+apiV0.get("/forecast", async (req, res) => {
+  const { lat, lon } = req.query;
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+
+  if (!lat || !lon) {
+    return res.status(400).json({ error: "Missing latitude or longitude" });
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&cnt=8`
+    );
+    
+    if (!response.ok) {
+      const errData = await response.json();
+      return res.status(response.status).json(errData);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("[Forecast Proxy Error]:", err);
+    res.status(500).json({ error: "Failed to fetch forecast data" });
+  }
+});
+
+// Crop Recommendation Endpoint
+apiV0.post("/crop-recommendation", async (req, res) => {
+  const { season, state, district } = req.body;
+  if (!season || !state || !district) {
+    return res.status(400).json({ error: "Missing season, state, or district" });
+  }
+
+  const prompt = `
+You are an expert Indian agricultural scientist. A farmer has requested crop recommendations.
+Details:
+- Season: ${season}
+- Location: ${district}, ${state}, India
+
+Based on the typical soil composition, climate, water availability, and market demand for this region, provide the top 5 best crop recommendations.
+You MUST output your response strictly as a JSON object matching this schema exactly:
+{
+  "soilInfo": "Brief description of typical soil here (e.g., 'Red laterite soil')",
+  "recommendations": [
+    {
+      "rank": 1,
+      "cropName": "Name of crop",
+      "matchPercentage": 95,
+      "reason": "Short reason why",
+      "waterNeed": "High/Medium/Low",
+      "potentialProfit": "e.g., ₹40k/Acre",
+      "investmentCost": "e.g., ₹15k/Acre",
+      "expectedYield": "e.g., 25 q/Acre",
+      "growingDuration": "e.g., 120 days",
+      "optimalPlanting": "e.g., 15-20 June",
+      "badge": "e.g., High Yield",
+      "tips": "One practical tip"
+    }
+  ]
+}
+Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.
+  `;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "openai/gpt-oss-120b",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      top_p: 1,
+      max_tokens: 1500,
+    });
+
+    const outputRaw = completion.choices[0]?.message?.content || "";
+    let jsonStr = outputRaw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (jsonStr.startsWith("\`\`\`json")) {
+        jsonStr = jsonStr.replace(/^\`\`\`json/i, "").replace(/\`\`\`$/i, "").trim();
+    } else if (jsonStr.startsWith("\`\`\`")) {
+        jsonStr = jsonStr.replace(/^\`\`\`/i, "").replace(/\`\`\`$/i, "").trim();
+    }
+
+    const data = JSON.parse(jsonStr);
+    res.json(data);
+  } catch (err) {
+    console.error("[Crop Recommendation Error]:", err);
+    res.status(500).json({ error: "Failed to generate recommendations." });
+  }
+});
+
+// AI-powered Notifications/Advisories Endpoint
+apiV0.post("/notifications", async (req, res) => {
+  const { weather, crops, location } = req.body;
+
+  const prompt = `
+You are KrishiMitra, an AI farming advisor for Indian farmers.
+Generate 4-6 short practical farming notifications/advisories based on the current conditions:
+- Weather: ${JSON.stringify(weather || {})}
+- Crops being grown: ${JSON.stringify(crops || [])}
+- Location: ${location || "India"}
+
+Categories: "weather", "crop", "advisory", "seasonal"
+Priorities: "high", "medium", "low"
+
+Return ONLY valid JSON:
+{
+  "notifications": [
+    {
+      "id": 1,
+      "category": "weather",
+      "priority": "high",
+      "title": "Brief alert title",
+      "body": "1-2 sentence actionable advice",
+      "timeAgo": "Just now"
+    }
+  ]
+}
+Do not include markdown formatting. Return ONLY JSON.
+  `;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "openai/gpt-oss-120b",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.5,
+      max_tokens: 1024,
+    });
+
+    const outputRaw = completion.choices[0]?.message?.content || "";
+    let jsonStr = outputRaw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (jsonStr.startsWith("```json")) {
+      jsonStr = jsonStr.replace(/^```json/i, "").replace(/```$/i, "").trim();
+    } else if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```/i, "").replace(/```$/i, "").trim();
+    }
+
+    const data = JSON.parse(jsonStr);
+    res.json(data);
+  } catch (err) {
+    console.error("[Notifications Error]:", err);
+    res.status(500).json({ error: "Failed to generate notifications." });
   }
 });
 

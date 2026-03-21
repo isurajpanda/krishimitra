@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { TopAppBar } from "@/components/TopAppBar"
 import { 
@@ -12,13 +12,87 @@ import {
   TrendingUp, 
   Droplets, 
   Banknote, 
-  ChevronDown, 
   ChevronRight, 
-  Camera 
+  Loader2,
+  X,
+  PlusCircle
 } from "lucide-react"
+
+import { indianLocations } from "@/lib/indianLocations"
+import { API_BASE_URL } from "@/config"
 
 export function CropsPage() {
   const [activeTab, setActiveTab] = useState("Recommend")
+  const [userCrops, setUserCrops] = useState<string[]>([])
+
+  const [soilInfo, setSoilInfo] = useState("")
+  const [season, setSeason] = useState("Kharif")
+  const [locState, setLocState] = useState(localStorage.getItem("userState") || "Maharashtra")
+  const [district, setDistrict] = useState(localStorage.getItem("userDistrict") || "Pune")
+  
+  const [isLoading, setIsLoading] = useState(false)
+  const [results, setResults] = useState<any[]>([])
+
+  useEffect(() => {
+    const crops = (localStorage.getItem("userCrops") || "").split(", ").filter(Boolean)
+    setUserCrops(crops)
+  }, [])
+
+  const handleRecommend = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`${API_BASE_URL}/crop-recommendation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ season, state: locState, district })
+      })
+      if (!res.ok) throw new Error("Failed to fetch")
+      const data = await res.json()
+      if (data && data.recommendations) {
+        setResults(data.recommendations)
+        if (data.soilInfo) setSoilInfo(data.soilInfo)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRemoveCrop = async (crop: string) => {
+    const updated = userCrops.filter(c => c !== crop)
+    setUserCrops(updated)
+    localStorage.setItem("userCrops", updated.join(", "))
+    // Save to DB
+    const userId = localStorage.getItem("userId")
+    if (userId) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/profile/${userId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ primaryCrops: updated })
+        })
+      } catch (e) { console.error(e) }
+    }
+  }
+
+  const handleAddCropFromResult = async (cropName: string) => {
+    if (userCrops.includes(cropName)) return
+    const updated = [...userCrops, cropName]
+    setUserCrops(updated)
+    localStorage.setItem("userCrops", updated.join(", "))
+    // Save to DB
+    const userId = localStorage.getItem("userId")
+    if (userId) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/profile/${userId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ primaryCrops: updated })
+        })
+      } catch (e) { console.error(e) }
+    }
+  }
 
   const tabs = [
     { id: "Recommend", icon: Sparkles, label: "Recommend" },
@@ -78,6 +152,7 @@ export function CropsPage() {
         </nav>
 
         <AnimatePresence mode="popLayout">
+          {/* =============== RECOMMEND TAB =============== */}
           {activeTab === "Recommend" && (
             <motion.div 
               key="Recommend"
@@ -94,227 +169,213 @@ export function CropsPage() {
                     <h2 className="font-headline text-xl text-on-surface">Crop Intelligence Hub</h2>
                   </div>
                   
-                  <div className="space-y-4">
-                    <div className="bg-surface-container-highest rounded-2xl p-4 flex flex-col gap-1 border-l-4 border-primary/40">
-                      <label className="text-[10px] font-label text-primary uppercase font-bold tracking-wider">Soil Composition</label>
-                      <input className="bg-transparent border-none p-0 text-on-surface focus:ring-0 font-medium placeholder:text-on-surface/40 outline-none w-full" type="text" defaultValue="Loamy-Clay (Red)"/>
-                    </div>
-                    
-                    <div className="flex gap-4">
-                      <div className="flex-1 bg-surface-container-highest rounded-2xl p-4 flex flex-col gap-1">
-                        <label className="text-[10px] font-label text-on-surface-variant uppercase font-bold tracking-wider">Season</label>
-                        <select className="bg-transparent border-none p-0 text-on-surface font-medium appearance-none outline-none w-full">
-                          <option className="bg-surface text-white">Kharif</option>
-                          <option className="bg-surface text-white">Rabi</option>
-                          <option className="bg-surface text-white">Zaid</option>
-                        </select>
+                    <div className="space-y-4">
+                      <div className="flex gap-4 flex-col md:flex-row">
+                        <div className="flex-1 bg-surface-container-highest rounded-2xl p-4 flex flex-col gap-1">
+                          <label className="text-[10px] font-label text-on-surface-variant uppercase font-bold tracking-wider">Season</label>
+                          <select className="bg-transparent border-none p-0 text-on-surface font-medium appearance-none outline-none w-full" value={season} onChange={e => setSeason(e.target.value)}>
+                            <option className="bg-surface text-white">Kharif</option>
+                            <option className="bg-surface text-white">Rabi</option>
+                            <option className="bg-surface text-white">Zaid</option>
+                            <option className="bg-surface text-white">Annual</option>
+                          </select>
+                        </div>
+                        
+                        <div className="flex-[2] flex gap-4">
+                          <div className="flex-1 bg-surface-container-highest rounded-2xl p-4 flex flex-col gap-1">
+                            <label className="text-[10px] font-label text-on-surface-variant uppercase font-bold tracking-wider">State</label>
+                            <select className="bg-transparent border-none p-0 text-on-surface font-medium appearance-none outline-none w-full" value={locState} onChange={e => { setLocState(e.target.value); setDistrict(indianLocations[e.target.value][0]); }}>
+                              {Object.keys(indianLocations).map(s => <option key={s} className="bg-surface text-white" value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                          
+                          <div className="flex-1 bg-surface-container-highest rounded-2xl p-4 flex flex-col gap-1">
+                            <label className="text-[10px] font-label text-on-surface-variant uppercase font-bold tracking-wider">District</label>
+                            <select className="bg-transparent border-none p-0 text-on-surface font-medium appearance-none outline-none w-full" value={district} onChange={e => setDistrict(e.target.value)}>
+                              {(indianLocations[locState] || []).map(d => <option key={d} className="bg-surface text-white" value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                        </div>
                       </div>
                       
-                      <div className="flex-1 bg-surface-container-highest rounded-2xl p-4 flex flex-col gap-1">
-                        <label className="text-[10px] font-label text-on-surface-variant uppercase font-bold tracking-wider">District</label>
-                        <input className="bg-transparent border-none p-0 text-on-surface focus:ring-0 font-medium outline-none w-full" type="text" defaultValue="Pune, MH"/>
-                      </div>
+                      <button 
+                         onClick={handleRecommend}
+                         disabled={isLoading}
+                         className="w-full py-4 bg-primary text-on-primary font-bold rounded-full flex items-center justify-center gap-2 glow-box-primary active:scale-95 transition-transform mt-2 hover:scale-[1.02] disabled:opacity-75 disabled:active:scale-100 disabled:hover:scale-100"
+                      >
+                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5 fill-current" />}
+                        {isLoading ? "Analyzing Data..." : "Find Best Crops"}
+                      </button>
                     </div>
-                    
-                    <button className="w-full py-4 bg-primary text-on-primary font-bold rounded-full flex items-center justify-center gap-2 glow-box-primary active:scale-95 transition-transform mt-2 hover:scale-[1.02]">
-                      <Sparkles className="w-5 h-5 fill-current" />
-                      Find Best Crops
-                    </button>
-                  </div>
                 </div>
               </section>
 
-              {/* Results Bento Grid */}
-              <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Hero Match Tile (Rank 1) */}
-                <div className="col-span-2 md:col-span-4 lg:col-span-2 glass-panel rounded-[28px] p-6 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4">
-                    <div className="bg-primary/20 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30 flex items-center gap-1">
-                      <Award className="w-3.5 h-3.5 text-primary fill-current" />
-                      <span className="font-label text-[12px] font-bold text-primary">RANK #1</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-headline text-3xl mb-1 text-on-surface">Basmati Rice</h3>
-                      <p className="text-primary font-medium text-sm flex items-center gap-1 glow-text">
-                        <TrendingUp className="w-4 h-4" />
-                        Market demand is high
+              {/* Results Grid */}
+              {results.length > 0 && (
+                <section className="transition-all space-y-6" style={{ opacity: isLoading ? 0.5 : 1 }}>
+                  {soilInfo && (
+                    <div className="glass-panel p-4 rounded-2xl flex items-center gap-3 border-l-[4px] border-tertiary">
+                      <Sprout className="text-tertiary w-6 h-6 shrink-0" />
+                      <p className="text-sm font-medium text-on-surface-variant">
+                        <span className="text-on-surface font-bold">Region Insight: </span>
+                        {soilInfo}
                       </p>
                     </div>
-                    
-                    <div className="relative w-24 h-24 flex items-center justify-center">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        <circle className="text-on-surface/5" cx="50" cy="50" fill="transparent" r="40" strokeWidth="6"></circle>
-                        <circle 
-                          className="text-primary drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]" 
-                          cx="50" cy="50" fill="transparent" r="40" 
-                          stroke="currentColor" strokeDasharray="251.2" strokeDashoffset="15" strokeLinecap="round" strokeWidth="6">
-                        </circle>
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="font-label text-xl font-bold glow-text">94%</span>
-                        <span className="text-[8px] uppercase font-bold opacity-60">Match</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                   
-                  <div className="mt-6 flex gap-3">
-                    <div className="flex-1 bg-surface-container-low rounded-2xl p-3 border border-outline/20">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Droplets className="w-4 h-4 text-tertiary" />
-                        <span className="font-label text-[10px] text-on-surface-variant uppercase font-bold">Water Need</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {results.map((crop, idx) => (
+                      <div key={`crop-${idx}`} className="glass-panel rounded-3xl overflow-hidden relative flex flex-col group border border-outline/10 hover:border-primary/30 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10">
+                        <div className="h-44 w-full relative bg-surface-container-highest overflow-hidden shrink-0">
+                          <img 
+                            src={`https://loremflickr.com/400/300/${encodeURIComponent(crop.cropName)},farm,crop`} 
+                            alt={crop.cropName} 
+                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-700 group-hover:scale-110" 
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent opacity-100"></div>
+                          
+                          <div className="absolute top-4 left-4 flex gap-2">
+                            <div className="bg-primary/90 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] text-on-primary font-bold uppercase tracking-wider flex items-center gap-1 shadow-lg">
+                              <Award className="w-3.5 h-3.5" /> Rank #{crop.rank || idx + 1}
+                            </div>
+                            <div className="bg-surface/80 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] text-primary font-bold shadow-lg uppercase tracking-wider">
+                              {crop.matchPercentage || 90}% Match
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="p-6 flex-1 flex flex-col relative z-10 -mt-12 pt-0">
+                          <div className="flex justify-between items-end mb-4">
+                            <h3 className="font-headline text-3xl font-bold text-on-surface drop-shadow-md glow-text leading-none">{crop.cropName}</h3>
+                            {!userCrops.includes(crop.cropName) ? (
+                              <button 
+                                onClick={() => handleAddCropFromResult(crop.cropName)} 
+                                className="w-10 h-10 shrink-0 rounded-full bg-primary/20 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all border border-primary/30 shadow-lg hover:rotate-90"
+                                title="Add to my crops"
+                              >
+                                <PlusCircle className="w-5 h-5" />
+                              </button>
+                            ) : (
+                              <div className="w-10 h-10 shrink-0 rounded-full bg-surface-container border border-outline/30 flex items-center justify-center text-primary shadow-inner">
+                                <ChevronRight className="w-5 h-5" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 mb-4">
+                             {crop.badge && <span className="text-[9px] uppercase font-bold px-2.5 py-1 rounded bg-tertiary/20 text-tertiary border border-tertiary/20 tracking-wider shadow-sm">{crop.badge}</span>}
+                             {crop.waterNeed && <span className="text-[9px] uppercase font-bold px-2.5 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/20 tracking-wider flex items-center shadow-sm"><Droplets className="w-2.5 h-2.5 inline mr-1" />{crop.waterNeed} Water</span>}
+                          </div>
+                          
+                          <p className="text-sm text-on-surface-variant font-medium mb-5 flex-1 line-clamp-3 leading-relaxed">
+                            {crop.reason}
+                          </p>
+                          
+                          <div className="grid grid-cols-2 gap-3 mb-5">
+                             <div className="bg-surface-container-low rounded-xl p-3 border border-outline/10 shadow-sm">
+                               <div className="text-[9px] text-on-surface-variant uppercase tracking-widest font-bold mb-1 flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5"/> Expected Yield</div>
+                               <div className="text-sm font-bold text-on-surface truncate">{crop.expectedYield || "Avg Yield"}</div>
+                             </div>
+                             <div className="bg-primary/5 rounded-xl p-3 border border-primary/20 shadow-sm glow-box-primary/10">
+                               <div className="text-[9px] text-primary uppercase tracking-widest font-bold mb-1 flex items-center gap-1"><Banknote className="w-3.5 h-3.5"/> Potential Profit</div>
+                               <div className="text-sm font-bold text-primary truncate">{crop.potentialProfit || "High Return"}</div>
+                             </div>
+                             <div className="bg-surface-container-low rounded-xl p-3 border border-outline/10 col-span-2 flex justify-between items-center shadow-sm">
+                               <div>
+                                 <div className="text-[9px] text-on-surface-variant uppercase tracking-widest font-bold mb-1 flex items-center gap-1"><Sprout className="w-3.5 h-3.5"/> Duration</div>
+                                 <div className="text-sm font-bold text-on-surface">{crop.growingDuration || "120-150 days"}</div>
+                               </div>
+                               <div className="text-right">
+                                 <div className="text-[9px] text-on-surface-variant uppercase tracking-widest font-bold mb-1 flex justify-end gap-1">Optimal Planting</div>
+                                 <div className="text-sm font-bold text-on-surface">{crop.optimalPlanting || "Within 15 days"}</div>
+                               </div>
+                             </div>
+                          </div>
+                          
+                          {crop.tips && (
+                            <div className="bg-surface-container-highest p-4 rounded-xl border-l-[3px] border-secondary text-xs font-medium text-on-surface-variant shadow-sm flex gap-2">
+                              <Sparkles className="w-4 h-4 text-secondary shrink-0 mt-0.5" />
+                              <p><span className="text-secondary font-bold mr-1">Pro Tip:</span>{crop.tips}</p>
+                            </div>
+                          )}
+                          
+                        </div>
                       </div>
-                      <p className="text-sm font-bold">High (Seasonal)</p>
-                    </div>
-                    
-                    <div className="flex-1 bg-surface-container-low rounded-2xl p-3 border border-outline/20">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Banknote className="w-4 h-4 text-secondary" />
-                        <span className="font-label text-[10px] text-on-surface-variant uppercase font-bold">Potential Profit</span>
-                      </div>
-                      <p className="text-sm font-bold">₹42k/Acre</p>
-                    </div>
+                    ))}
                   </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-outline/30 flex items-center justify-between">
-                    <span className="text-xs text-on-surface-variant font-medium">Optimal Planting: 15-20 June</span>
-                    <button className="text-primary flex items-center gap-1 text-sm font-bold">
-                      Details <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tile 2 */}
-                <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-[28px] p-4 flex flex-col justify-between aspect-square relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/5 rounded-full blur-2xl"></div>
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="font-label text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">#2 Rank</span>
-                      <div className="bg-primary/20 px-2 py-0.5 rounded-full text-[9px] text-primary font-bold uppercase">High Yield</div>
-                    </div>
-                    <h4 className="font-headline text-lg leading-tight">Sugarcane<br/>(Co 86032)</h4>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div className="font-label text-xl font-bold glow-text">88%</div>
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                  </div>
-                </div>
-
-                {/* Tile 3 */}
-                <div className="col-span-1 md:col-span-2 lg:col-span-1 glass-panel rounded-[28px] p-4 flex flex-col justify-between aspect-square relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 w-20 h-20 bg-tertiary/5 rounded-full blur-2xl"></div>
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="font-label text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">#3 Rank</span>
-                    </div>
-                    <h4 className="font-headline text-lg leading-tight">Soybean<br/>(JS 335)</h4>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div className="font-label text-xl font-bold glow-text">81%</div>
-                    <ChevronRight className="w-5 h-5 text-primary" />
-                  </div>
-                </div>
-              </section>
-
-              {/* Fertilizer Intelligence (Teaser) */}
-              <section className="mt-8 mb-8">
-                <div className="glass-panel rounded-[28px] p-6 border-l-4 border-primary/40">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="font-headline text-xl text-on-surface">Fertilizer Health</h2>
-                      <p className="text-xs text-on-surface-variant">Soil NPK Ratios for Basmati Rice</p>
-                    </div>
-                    <FlaskConical className="w-6 h-6 text-primary glow-text" />
-                  </div>
-                  
-                  <div className="flex justify-around items-end h-32 gap-4">
-                    <div className="flex flex-col items-center flex-1 gap-2">
-                      <div className="w-full bg-surface-container-high rounded-full relative overflow-hidden h-24 border border-outline/20">
-                        <div className="absolute bottom-0 w-full bg-primary/30 h-[65%] shadow-[0_0_10px_rgba(0,255,65,0.3)]"></div>
-                      </div>
-                      <span className="font-label font-bold text-primary">N</span>
-                      <span className="text-[10px] font-medium text-on-surface-variant">65%</span>
-                    </div>
-                    <div className="flex flex-col items-center flex-1 gap-2">
-                      <div className="w-full bg-surface-container-high rounded-full relative overflow-hidden h-24 border border-outline/20">
-                        <div className="absolute bottom-0 w-full bg-secondary/30 h-[40%]"></div>
-                      </div>
-                      <span className="font-label font-bold text-secondary">P</span>
-                      <span className="text-[10px] font-medium text-on-surface-variant">40%</span>
-                    </div>
-                    <div className="flex flex-col items-center flex-1 gap-2">
-                      <div className="w-full bg-surface-container-high rounded-full relative overflow-hidden h-24 border border-outline/20">
-                        <div className="absolute bottom-0 w-full bg-tertiary/30 h-[80%] shadow-[0_0_10px_rgba(128,255,180,0.3)]"></div>
-                      </div>
-                      <span className="font-label font-bold text-tertiary">K</span>
-                      <span className="text-[10px] font-medium text-on-surface-variant">80%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-8 space-y-4">
-                    <div className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className="w-2 h-2 rounded-full bg-primary glow-box-primary"></div>
-                        <div className="w-px h-full bg-primary/20 my-1"></div>
-                      </div>
-                      <div className="pb-4">
-                        <h5 className="text-sm font-bold text-primary">Apply Urea (45-0-0)</h5>
-                        <p className="text-xs text-on-surface-variant font-medium">Dosage: 50kg/acre • 2 days from now</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4 opacity-40">
-                      <div className="flex flex-col items-center">
-                        <div className="w-2 h-2 rounded-full bg-on-surface-variant"></div>
-                        <div className="w-px h-full bg-outline-variant my-1"></div>
-                      </div>
-                      <div className="pb-4">
-                        <h5 className="text-sm font-bold">DAP Application</h5>
-                        <p className="text-xs font-medium">Completed 12 days ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Pests & Diseases (Teaser) */}
-              <section className="mb-8">
-                <div className="flex items-center justify-between mb-4 px-2">
-                  <h2 className="font-headline text-xl text-on-surface">Local Pest Alerts</h2>
-                  <button className="text-primary text-sm font-bold glow-text">View all</button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="glass-panel rounded-[28px] p-4 border border-error/30">
-                    <div className="w-full h-24 bg-surface-container-highest rounded-2xl mb-3 overflow-hidden border border-outline/20 relative">
-                      <img alt="Yellow Stem Borer" className="w-full h-full object-cover grayscale brightness-125 contrast-125 absolute inset-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdyLxgEd7FKIl3n8r6DvFnC9D8UixIFidcQ_3cVflOo-D2VcMm88OyVC5Mmq54chzwp4y_YozP9OTn3r7T3t-zQxuhXnQcJin19keulJrUe-nGw_cXA9jXIBAMap7ynS-vt67KqXHQDJt83WPcG5h62lVxwfCRU9aIOw0HYbRzwQhXWiNgE5RgU-uI1DljnQBSkl0kxqjaahlSWzP1qJ9vibE19-p8Q3x7OXjXh7u80ARnIxm6m6Y99PbDyivaQCq_G3IpIWD2IQrM" />
-                    </div>
-                    <span className="bg-error/20 text-error text-[9px] px-2 py-0.5 rounded-full font-bold uppercase mb-1 inline-block border border-error/30">High Risk</span>
-                    <h5 className="font-headline text-sm">Yellow Stem Borer</h5>
-                    <p className="text-[10px] text-on-surface-variant mt-1 font-medium">Reported in 12 farms nearby</p>
-                  </div>
-                  
-                  <div className="glass-panel rounded-[28px] p-4 border border-primary/20">
-                    <div className="w-full h-24 bg-surface-container-highest rounded-2xl mb-3 overflow-hidden border border-outline/20 relative">
-                      <img alt="Blight Disease" className="w-full h-full object-cover absolute inset-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA434yi0pX8fA7i_EeTsr0uubFkih6qhY2BUYQBKqQpZuWr-XXwgxFCeY1rzmgWjJDWeg4OplKTXeNjwtx0yKk4T6E9TrngN8dlRZ18_nOUJS_GTlqSbliZWIQ3Nsp0Ytcu-bJjsMLVEW8mtCrAWN1LR7gRq1QytnbpNsyo9plYDlmsEjwILe3rm-C0svFZ_r77cGevDTj8sDj-QXqihTg7V5vvK1qp0hXNX5l_9TMCot22-PPiEbiB_pnD6cgcBLyWU8B1boZ0n0KF" />
-                    </div>
-                    <span className="bg-primary/20 text-primary text-[9px] px-2 py-0.5 rounded-full font-bold uppercase mb-1 inline-block border border-primary/30">Preventive</span>
-                    <h5 className="font-headline text-sm">Leaf Blight</h5>
-                    <p className="text-[10px] text-on-surface-variant mt-1 font-medium">Optimal weather for fungus</p>
-                  </div>
-                  
-                  <button className="col-span-2 glass-panel rounded-2xl p-4 flex items-center justify-center gap-2 border-dashed border-primary/40 text-primary font-bold active:scale-[0.98] transition-all hover:bg-primary/5">
-                    <Camera className="w-5 h-5" />
-                    Report a Pest
-                  </button>
-                </div>
-              </section>
+                </section>
+              )}
             </motion.div>
           )}
 
-          {/* Stubs for other tabs to show animation */}
-          {activeTab !== "Recommend" && (
+          {/* =============== MY CROPS TAB =============== */}
+          {activeTab === "My Crops" && (
+            <motion.div 
+              key="MyCrops"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="w-1.5 h-6 bg-primary rounded-full glow-box-primary"></span>
+                  <h2 className="font-headline text-xl text-on-surface">Your Active Crops</h2>
+                  <span className="ml-auto text-xs text-on-surface-variant">{userCrops.length} crop{userCrops.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {userCrops.length === 0 ? (
+                  <div className="glass-panel rounded-[28px] p-12 text-center">
+                    <Sprout className="w-16 h-16 text-primary/20 mx-auto mb-4" />
+                    <h3 className="font-headline text-xl text-on-surface mb-2">No Crops Yet</h3>
+                    <p className="text-on-surface-variant text-sm mb-6">Use the Recommend tab to find the best crops for your farm, or add them from your Profile.</p>
+                    <button
+                      onClick={() => setActiveTab("Recommend")}
+                      className="px-6 py-3 bg-primary text-on-primary rounded-full font-bold flex items-center justify-center gap-2 mx-auto hover:scale-105 transition-transform"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Get Recommendations
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {userCrops.map((crop, idx) => (
+                      <motion.div 
+                        key={crop}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="glass-panel rounded-[28px] p-5 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                            <Sprout className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-headline font-bold text-on-surface">{crop}</h4>
+                            <p className="text-xs text-on-surface-variant">Active Crop</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,65,0.2)]">Growing</div>
+                          <button 
+                            onClick={() => handleRemoveCrop(crop)}
+                            className="text-on-surface-variant hover:text-error transition-colors p-1"
+                            title="Remove crop"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* =============== COMING SOON TABS =============== */}
+          {(activeTab === "Fertilizer" || activeTab === "Pests") && (
             <motion.div 
               key={activeTab}
               initial={{ opacity: 0, scale: 0.95 }}
@@ -323,14 +384,25 @@ export function CropsPage() {
               transition={{ duration: 0.3 }}
               className="mt-12 text-center"
             >
-              <div className="flex justify-center mb-4">
-                {(() => {
-                  const Icon = tabs.find(t => t.id === activeTab)?.icon || Sparkles
-                  return <Icon className="w-16 h-16 text-primary/30" />
-                })()}
+              <div className="glass-panel rounded-[28px] p-12 max-w-md mx-auto">
+                <div className="flex justify-center mb-6">
+                  {(() => {
+                    const Icon = tabs.find(t => t.id === activeTab)?.icon || Sparkles
+                    return <Icon className="w-20 h-20 text-primary/20" />
+                  })()}
+                </div>
+                <h2 className="font-headline text-2xl text-on-surface mb-2">Coming Soon</h2>
+                <p className="text-on-surface-variant mt-2 text-sm">
+                  {activeTab === "Fertilizer" 
+                    ? "AI-powered fertilizer recommendations based on your soil and crops will be available soon."
+                    : "Real-time pest detection and prevention advisories are being developed."
+                  }
+                </p>
+                <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                  <span className="text-xs text-primary font-bold uppercase tracking-widest">In Development</span>
+                </div>
               </div>
-              <h2 className="font-headline text-2xl text-on-surface">Coming Soon</h2>
-              <p className="text-on-surface-variant mt-2">{activeTab} intelligence is being processed...</p>
             </motion.div>
           )}
         </AnimatePresence>

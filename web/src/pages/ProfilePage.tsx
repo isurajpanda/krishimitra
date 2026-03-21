@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { API_BASE_URL } from "@/config"
 import { motion } from "framer-motion"
@@ -6,10 +6,24 @@ import { TopAppBar } from "@/components/TopAppBar"
 import { useTheme } from "@/hooks/useTheme"
 import { 
   Sun, Moon, MapPin, Tractor, Sprout, PlusCircle, 
-  Waves, Bug, TrendingUp, Landmark, FlaskConical, HelpCircle, 
-  Share2, Star, LogOut, ChevronRight, User, Mail, Check, X, Pencil, Loader2
+  Check, X, Pencil, Loader2, User, Mail, LogOut
 } from "lucide-react"
-import { useEffect } from "react"
+
+import { indianLocations } from "@/lib/indianLocations"
+
+interface ProfileData {
+  name: string;
+  location: string;
+  farmType: string;
+  primaryCrops: string[];
+  preferredLanguage: string;
+  state: string;
+  district: string;
+  units: string;
+  weatherAlerts: boolean;
+  pestWarnings: boolean;
+  marketTrends: boolean;
+}
 
 export function ProfilePage() {
   const { toggleTheme, isDark } = useTheme()
@@ -17,11 +31,21 @@ export function ProfilePage() {
   
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const [isSavingPref, setIsSavingPref] = useState(false)
+  const [newCrop, setNewCrop] = useState("")
+
+  const [formData, setFormData] = useState<ProfileData>({
     name: localStorage.getItem("userName") || "",
     location: localStorage.getItem("userLocation") || "",
     farmType: localStorage.getItem("userFarmType") || "Small Scale",
-    primaryCrops: (localStorage.getItem("userCrops") || "").split(", ").filter(Boolean)
+    primaryCrops: (localStorage.getItem("userCrops") || "").split(", ").filter(Boolean),
+    preferredLanguage: localStorage.getItem("userLanguage") || "English",
+    state: localStorage.getItem("userState") || "Maharashtra",
+    district: localStorage.getItem("userDistrict") || "Pune",
+    units: localStorage.getItem("userUnits") || "Metric",
+    weatherAlerts: localStorage.getItem("userWeatherAlerts") !== "false",
+    pestWarnings: localStorage.getItem("userPestWarnings") !== "false",
+    marketTrends: localStorage.getItem("userMarketTrends") === "true"
   })
 
   useEffect(() => {
@@ -32,17 +56,32 @@ export function ProfilePage() {
          const res = await fetch(`${API_BASE_URL}/auth/profile/${userId}`)
          if (res.ok) {
            const data = await res.json()
-           const updated = {
+           const updated: ProfileData = {
               name: data.name || "",
               location: data.location || "",
               farmType: data.farm_type || "Small Scale",
-              primaryCrops: data.primary_crops || []
+              primaryCrops: data.primary_crops || [],
+              preferredLanguage: data.preferred_language || "English",
+              state: data.state || "Maharashtra",
+              district: data.district || "Pune",
+              units: data.units || "Metric",
+              weatherAlerts: data.weather_alerts !== false,
+              pestWarnings: data.pest_warnings !== false,
+              marketTrends: data.market_trends === true
            }
            setFormData(updated)
+           // Sync to localStorage
            localStorage.setItem("userName", updated.name)
            localStorage.setItem("userLocation", updated.location)
            localStorage.setItem("userFarmType", updated.farmType)
            localStorage.setItem("userCrops", updated.primaryCrops.join(", "))
+           localStorage.setItem("userLanguage", updated.preferredLanguage)
+           localStorage.setItem("userState", updated.state)
+           localStorage.setItem("userDistrict", updated.district)
+           localStorage.setItem("userUnits", updated.units)
+           localStorage.setItem("userWeatherAlerts", String(updated.weatherAlerts))
+           localStorage.setItem("userPestWarnings", String(updated.pestWarnings))
+           localStorage.setItem("userMarketTrends", String(updated.marketTrends))
          }
       } catch (e) { console.error(e) }
     }
@@ -52,6 +91,21 @@ export function ProfilePage() {
   const handleLogout = () => {
     localStorage.clear()
     navigate("/auth")
+  }
+
+  const saveToServer = async (updates: Partial<Record<string, any>>) => {
+    const userId = localStorage.getItem("userId")
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/profile/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      })
+      return res.ok
+    } catch (err) {
+      console.error(err)
+      return false
+    }
   }
 
   const handleSave = async () => {
@@ -64,6 +118,8 @@ export function ProfilePage() {
         body: JSON.stringify({ 
           name: formData.name, 
           location: formData.location,
+          state: formData.state,
+          district: formData.district,
           farmType: formData.farmType,
           primaryCrops: formData.primaryCrops
         }),
@@ -72,6 +128,8 @@ export function ProfilePage() {
       if (res.ok) {
         localStorage.setItem("userName", formData.name)
         localStorage.setItem("userLocation", formData.location)
+        localStorage.setItem("userState", formData.state)
+        localStorage.setItem("userDistrict", formData.district)
         localStorage.setItem("userFarmType", formData.farmType)
         localStorage.setItem("userCrops", formData.primaryCrops.join(", "))
         setIsEditing(false)
@@ -84,14 +142,56 @@ export function ProfilePage() {
     }
   }
 
-  const userName = localStorage.getItem("userName") || "Farmer"
+  const handleTogglePref = async (key: "weatherAlerts" | "pestWarnings" | "marketTrends") => {
+    const newValue = !formData[key]
+    setFormData(prev => ({ ...prev, [key]: newValue }))
+    setIsSavingPref(true)
+    
+    const serverKey = key === "weatherAlerts" ? "weatherAlerts" : key === "pestWarnings" ? "pestWarnings" : "marketTrends"
+    const localKey = key === "weatherAlerts" ? "userWeatherAlerts" : key === "pestWarnings" ? "userPestWarnings" : "userMarketTrends"
+    
+    localStorage.setItem(localKey, String(newValue))
+    await saveToServer({ [serverKey]: newValue })
+    setIsSavingPref(false)
+  }
+
+  const handleLanguageChange = async (lang: string) => {
+    setFormData(prev => ({ ...prev, preferredLanguage: lang }))
+    localStorage.setItem("userLanguage", lang)
+    await saveToServer({ preferredLanguage: lang })
+  }
+
+  const handleUnitsChange = async (newUnits: string) => {
+    setFormData(prev => ({ ...prev, units: newUnits }))
+    localStorage.setItem("userUnits", newUnits)
+    await saveToServer({ units: newUnits })
+  }
+
+  const handleAddCrop = async () => {
+    if (!newCrop.trim()) return
+    const updated = [...formData.primaryCrops, newCrop.trim()]
+    setFormData(prev => ({ ...prev, primaryCrops: updated }))
+    setNewCrop("")
+    localStorage.setItem("userCrops", updated.join(", "))
+    await saveToServer({ primaryCrops: updated })
+  }
+
+  const handleRemoveCrop = async (crop: string) => {
+    const updated = formData.primaryCrops.filter(c => c !== crop)
+    setFormData(prev => ({ ...prev, primaryCrops: updated }))
+    localStorage.setItem("userCrops", updated.join(", "))
+    await saveToServer({ primaryCrops: updated })
+  }
+
+  const userName = formData.name || "Farmer"
   const userEmail = localStorage.getItem("userEmail") || ""
-  const userLocation = localStorage.getItem("userLocation") || "Location not set"
+  const languages = ["English", "हिंदी", "ਪੰਜਾਬੀ", "தமிழ்", "తెలుగు", "ಕನ್ನಡ", "ଓଡ଼ିଆ", "বাংলা", "মराठी"]
   
   return (
     <div className="bg-transparent text-on-surface font-body selection:bg-primary selection:text-on-primary antialiased min-h-screen pb-12 overflow-x-hidden">
       <TopAppBar />
       <main className="relative z-10 max-w-4xl w-full mx-auto px-4 pt-24 pb-8 flex flex-col md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Profile Hero */}
         <motion.section 
           className="col-span-full glass-panel rounded-3xl p-8 group relative overflow-hidden"
           initial={{ opacity: 0, y: 20 }}
@@ -120,28 +220,51 @@ export function ProfilePage() {
                       onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
+                  <div className="flex gap-4">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-primary font-bold">State</label>
+                      <select 
+                        className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
+                        value={formData.state}
+                        onChange={e => {
+                          const newState = e.target.value
+                          setFormData({...formData, state: newState, district: indianLocations[newState][0]})
+                        }}
+                      >
+                        {Object.keys(indianLocations).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-primary font-bold">District</label>
+                      <select 
+                        className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
+                        value={formData.district}
+                        onChange={e => setFormData({...formData, district: e.target.value})}
+                      >
+                        {(indianLocations[formData.state] || []).map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                  </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Location</label>
+                    <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Village / Area Name</label>
                     <input 
                       className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
                       value={formData.location}
                       onChange={e => setFormData({...formData, location: e.target.value})}
-                      placeholder="Location"
+                      placeholder="Village Name"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Farm Type</label>
-                      <select 
-                        className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
-                        value={formData.farmType}
-                        onChange={e => setFormData({...formData, farmType: e.target.value})}
-                      >
-                        <option>Small Scale (1-2 Acres)</option>
-                        <option>Medium Scale (3-10 Acres)</option>
-                        <option>Large Scale (10+ Acres)</option>
-                      </select>
-                    </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Farm Type</label>
+                    <select 
+                      className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
+                      value={formData.farmType}
+                      onChange={e => setFormData({...formData, farmType: e.target.value})}
+                    >
+                      <option>Small Scale (1-2 Acres)</option>
+                      <option>Medium Scale (3-10 Acres)</option>
+                      <option>Large Scale (10+ Acres)</option>
+                    </select>
                   </div>
                 </div>
               ) : (
@@ -156,7 +279,7 @@ export function ProfilePage() {
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                     <div className="px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-primary/20 backdrop-blur-sm">
                       <MapPin className="w-4 h-4" />
-                      {userLocation}
+                      {formData.location}, {formData.district}, {formData.state}
                     </div>
                     <button
                       onClick={toggleTheme}
@@ -225,23 +348,23 @@ export function ProfilePage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center">
               <span className="font-label text-xl font-bold text-primary glow-text">
-                {formData.farmType.includes("Small") ? "1.5" : formData.farmType.includes("Medium") ? "6.5" : "15+"}
+                {formData.farmType.includes("Small") ? "1-2" : formData.farmType.includes("Medium") ? "3-10" : "10+"}
               </span>
               <span className="text-[9px] font-label text-on-surface-variant uppercase mt-1 tracking-widest">Acres</span>
             </div>
             <div className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-              <span className="font-label text-xl font-bold text-tertiary">A+</span>
-              <span className="text-[9px] font-label text-on-surface-variant uppercase mt-1 tracking-widest">Soil</span>
+              <span className="font-label text-xl font-bold text-primary">{formData.primaryCrops.length}</span>
+              <span className="text-[9px] font-label text-on-surface-variant uppercase mt-1 tracking-widest">Crops</span>
             </div>
             <div className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-              <span className="font-label text-xl font-bold text-primary/70">Opt</span>
-              <span className="text-[9px] font-label text-on-surface-variant uppercase mt-1 tracking-widest">Water</span>
+              <span className="font-label text-lg font-bold text-tertiary">{formData.preferredLanguage.slice(0, 3)}</span>
+              <span className="text-[9px] font-label text-on-surface-variant uppercase mt-1 tracking-widest">Lang</span>
             </div>
           </div>
           
           <div className="space-y-3">
             {formData.primaryCrops.map((crop, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors cursor-pointer">
+              <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
                     <Sprout className="w-5 h-5 text-primary" />
@@ -251,7 +374,13 @@ export function ProfilePage() {
                     <p className="text-xs text-on-surface-variant">Active Crop</p>
                   </div>
                 </div>
-                <div className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,65,0.2)]">Growing</div>
+                <button 
+                  onClick={() => handleRemoveCrop(crop)}
+                  className="text-on-surface-variant hover:text-error transition-colors p-1"
+                  title="Remove crop"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             ))}
             
@@ -259,14 +388,28 @@ export function ProfilePage() {
                <div className="text-center py-4 text-on-surface-variant text-sm italic">No crops listed</div>
             )}
             
-            <button className="w-full p-4 rounded-2xl border border-dashed border-primary/20 bg-primary/5 flex items-center justify-center gap-2 text-primary/70 hover:bg-primary/10 hover:text-primary transition-all active:scale-[0.98]">
-              <PlusCircle className="w-5 h-5" />
-              <span className="font-bold text-xs uppercase tracking-widest">Add New Field</span>
-            </button>
+            {/* Add Crop Input */}
+            <div className="flex gap-2">
+              <input 
+                type="text"
+                value={newCrop}
+                onChange={e => setNewCrop(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAddCrop()}
+                placeholder="Add a crop..."
+                className="flex-1 p-3 rounded-2xl border border-dashed border-primary/20 bg-primary/5 text-sm text-on-surface placeholder:text-primary/50 focus:outline-none focus:border-primary/40"
+              />
+              <button 
+                onClick={handleAddCrop}
+                disabled={!newCrop.trim()}
+                className="px-4 rounded-2xl bg-primary/10 border border-primary/20 text-primary font-bold flex items-center gap-1 hover:bg-primary/20 transition-all disabled:opacity-30"
+              >
+                <PlusCircle className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </motion.section>
 
-        {/* Preferences Section */}
+        {/* Preferences Section - All Connected to DB */}
         <motion.section 
           className="space-y-4 col-span-1"
           initial={{ opacity: 0, y: 20 }}
@@ -275,144 +418,136 @@ export function ProfilePage() {
         >
           <h3 className="font-headline text-[10px] font-black tracking-[0.2em] text-on-surface-variant uppercase px-2">Preferences</h3>
           <div className="glass-panel rounded-3xl p-6 space-y-6">
+            {/* Language */}
             <div className="space-y-3">
               <label className="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">Preferred Language</label>
-              <div className="flex gap-2">
-                <button className="px-5 py-2 rounded-full bg-primary text-on-primary font-bold text-sm shadow-[0_0_15px_rgba(0,255,65,0.4)] transition-transform hover:scale-105">English</button>
-                <button className="px-5 py-2 rounded-full bg-surface-container-high border border-outline/30 text-on-surface font-medium text-sm hover:bg-white/5 transition-colors">हिंदी</button>
-                <button className="px-5 py-2 rounded-full bg-surface-container-high border border-outline/30 text-on-surface font-medium text-sm hover:bg-white/5 transition-colors">ਪੰਜਾਬੀ</button>
+              <div className="flex flex-wrap gap-2">
+                {languages.map(lang => (
+                  <button 
+                    key={lang}
+                    onClick={() => handleLanguageChange(lang)}
+                    className={lang === formData.preferredLanguage 
+                      ? "px-4 py-1.5 rounded-full bg-primary text-on-primary font-bold text-sm shadow-[0_0_15px_rgba(0,255,65,0.4)] transition-transform hover:scale-105"
+                      : "px-4 py-1.5 rounded-full bg-surface-container-high border border-outline/30 text-on-surface font-medium text-sm hover:bg-white/5 transition-colors"
+                    }
+                  >
+                    {lang}
+                  </button>
+                ))}
               </div>
             </div>
             
+            {/* Units */}
             <div className="space-y-3">
               <label className="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">Units Display</label>
               <div className="grid grid-cols-2 p-1 bg-surface-container rounded-full border border-outline/20">
-                <button className="py-2 rounded-full bg-primary/20 border border-primary/30 font-bold text-sm text-primary">Metric (kg, m)</button>
-                <button className="py-2 rounded-full font-medium text-sm text-on-surface-variant hover:text-on-surface transition-colors">Imperial (lb, ft)</button>
+                <button 
+                  onClick={() => handleUnitsChange("Metric")}
+                  className={formData.units === "Metric" 
+                    ? "py-2 rounded-full bg-primary/20 border border-primary/30 font-bold text-sm text-primary"
+                    : "py-2 rounded-full font-medium text-sm text-on-surface-variant hover:text-on-surface transition-colors"
+                  }
+                >Metric (kg, m)</button>
+                <button 
+                  onClick={() => handleUnitsChange("Imperial")}
+                  className={formData.units === "Imperial" 
+                    ? "py-2 rounded-full bg-primary/20 border border-primary/30 font-bold text-sm text-primary"
+                    : "py-2 rounded-full font-medium text-sm text-on-surface-variant hover:text-on-surface transition-colors"
+                  }
+                >Imperial (lb, ft)</button>
               </div>
             </div>
             
+            {/* Alert Toggles - Connected to DB */}
             <div className="space-y-4 pt-4 border-t border-primary/10">
+              {isSavingPref && (
+                <div className="flex items-center gap-2 text-[10px] text-primary">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Saving...
+                </div>
+              )}
+              
+              {/* Weather Alerts */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Waves className="w-5 h-5 text-primary" />
+                  <Sun className="w-5 h-5 text-primary" />
                   <span className="text-sm font-medium">Weather Alerts</span>
                 </div>
-                <div className="w-10 h-5 bg-primary/30 rounded-full relative p-0.5 border border-primary/50 cursor-pointer">
-                  <div className="w-4 h-4 bg-primary rounded-full absolute right-0.5 shadow-[0_0_10px_rgba(0,255,65,0.6)]"></div>
-                </div>
+                <button 
+                  onClick={() => handleTogglePref("weatherAlerts")}
+                  className={`w-10 h-5 rounded-full relative p-0.5 border cursor-pointer transition-all ${
+                    formData.weatherAlerts 
+                      ? "bg-primary/30 border-primary/50" 
+                      : "bg-surface-container-high border-outline/50"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full absolute transition-all ${
+                    formData.weatherAlerts 
+                      ? "bg-primary right-0.5 shadow-[0_0_10px_rgba(0,255,65,0.6)]" 
+                      : "bg-on-surface-variant left-0.5"
+                  }`}></div>
+                </button>
               </div>
+              
+              {/* Pest Warnings */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Bug className="w-5 h-5 text-error" />
+                  <Sprout className="w-5 h-5 text-error" />
                   <span className="text-sm font-medium">Pest Warnings</span>
                 </div>
-                <div className="w-10 h-5 bg-error/30 rounded-full relative p-0.5 border border-error/50 cursor-pointer">
-                  <div className="w-4 h-4 bg-error rounded-full absolute right-0.5 shadow-[0_0_10px_rgba(255,59,48,0.6)]"></div>
-                </div>
+                <button 
+                  onClick={() => handleTogglePref("pestWarnings")}
+                  className={`w-10 h-5 rounded-full relative p-0.5 border cursor-pointer transition-all ${
+                    formData.pestWarnings 
+                      ? "bg-error/30 border-error/50" 
+                      : "bg-surface-container-high border-outline/50"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full absolute transition-all ${
+                    formData.pestWarnings 
+                      ? "bg-error right-0.5 shadow-[0_0_10px_rgba(255,59,48,0.6)]" 
+                      : "bg-on-surface-variant left-0.5"
+                  }`}></div>
+                </button>
               </div>
+              
+              {/* Market Trends */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <TrendingUp className="w-5 h-5 text-tertiary" />
+                  <Tractor className="w-5 h-5 text-tertiary" />
                   <span className="text-sm font-medium">Market Trends</span>
                 </div>
-                <div className="w-10 h-5 bg-surface-container-high rounded-full relative p-0.5 border border-outline/50 cursor-pointer">
-                  <div className="w-4 h-4 bg-on-surface-variant rounded-full absolute left-0.5"></div>
-                </div>
+                <button 
+                  onClick={() => handleTogglePref("marketTrends")}
+                  className={`w-10 h-5 rounded-full relative p-0.5 border cursor-pointer transition-all ${
+                    formData.marketTrends 
+                      ? "bg-tertiary/30 border-tertiary/50" 
+                      : "bg-surface-container-high border-outline/50"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full absolute transition-all ${
+                    formData.marketTrends 
+                      ? "bg-tertiary right-0.5 shadow-[0_0_10px_rgba(128,255,180,0.6)]" 
+                      : "bg-on-surface-variant left-0.5"
+                  }`}></div>
+                </button>
               </div>
             </div>
           </div>
         </motion.section>
 
-        {/* Linked Services */}
-        <motion.section 
-          className="space-y-4 col-span-1"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <h3 className="font-headline text-[10px] font-black tracking-[0.2em] text-on-surface-variant uppercase px-2">Linked Services</h3>
-          <div className="grid grid-cols-1 gap-3">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/5 border border-primary/20 flex items-center justify-center">
-                  <Landmark className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-bold text-on-surface">PM-Kisan ID</p>
-                  <p className="text-xs text-on-surface-variant">Linked to •••• 8892</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_5px_rgba(0,255,65,1)]"></div>
-                <span className="text-[10px] font-bold text-primary tracking-widest uppercase">Connected</span>
-              </div>
-            </div>
-            
-            <div className="glass-panel p-5 rounded-3xl border border-primary/10 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-tertiary/10 border border-tertiary/20 flex items-center justify-center">
-                    <FlaskConical className="w-5 h-5 text-tertiary" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-on-surface">Soil Health Card</p>
-                    <p className="text-xs text-on-surface-variant">Last tested: Dec 2023</p>
-                  </div>
-                </div>
-                <button className="text-primary text-[10px] font-bold uppercase tracking-widest underline underline-offset-4 hover:text-tertiary transition-colors">View</button>
-              </div>
-              <div className="flex gap-2 h-12">
-                <div className="flex-1 rounded-xl bg-surface-container border border-primary/20 flex items-center justify-center">
-                  <span className="font-label text-xs font-bold text-primary">N</span>
-                </div>
-                <div className="flex-1 rounded-xl bg-surface-container border border-error/20 flex items-center justify-center">
-                  <span className="font-label text-xs font-bold text-error">P</span>
-                </div>
-                <div className="flex-1 rounded-xl bg-surface-container border border-tertiary/20 flex items-center justify-center">
-                  <span className="font-label text-xs font-bold text-tertiary">K</span>
-                </div>
-                <div className="flex-[3] flex flex-col justify-center px-2">
-                  <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden border border-outline/50">
-                    <div className="w-4/5 h-full bg-primary shadow-[0_0_8px_rgba(0,255,65,0.6)]"></div>
-                  </div>
-                  <span className="text-[8px] mt-1 text-on-surface-variant uppercase tracking-widest font-medium">Optimal Status</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* App Section */}
+        {/* Logout Section */}
         <motion.section 
           className="space-y-2 col-span-1"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container/50 border border-outline/20 hover:bg-surface-container hover:border-outline/40 transition-colors group">
-            <div className="flex items-center gap-4">
-              <HelpCircle className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
-              <span className="font-medium text-sm">Help &amp; Support</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:translate-x-1 transition-transform" />
-          </button>
-          <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container/50 border border-outline/20 hover:bg-surface-container hover:border-outline/40 transition-colors group">
-            <div className="flex items-center gap-4">
-              <Share2 className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
-              <span className="font-medium text-sm">Share with Farmers</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:translate-x-1 transition-transform" />
-          </button>
-          <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container/50 border border-outline/20 hover:bg-surface-container hover:border-outline/40 transition-colors group">
-            <div className="flex items-center gap-4">
-              <Star className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition-colors" />
-              <span className="font-medium text-sm">Rate Application</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:translate-x-1 transition-transform" />
-          </button>
+          <h3 className="font-headline text-[10px] font-black tracking-[0.2em] text-on-surface-variant uppercase px-2">Account</h3>
           
-          <button className="w-full flex items-center justify-between p-4 rounded-2xl border border-error/20 bg-error/5 hover:bg-error/10 transition-colors group mt-4">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between p-4 rounded-2xl border border-error/20 bg-error/5 hover:bg-error/10 transition-colors group"
+          >
             <div className="flex items-center gap-4">
               <LogOut className="w-5 h-5 text-error" />
               <span className="font-bold text-error uppercase tracking-widest text-xs">Logout</span>
