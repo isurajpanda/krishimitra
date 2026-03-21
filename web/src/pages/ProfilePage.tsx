@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { API_BASE_URL } from "@/config"
 import { motion } from "framer-motion"
 import { TopAppBar } from "@/components/TopAppBar"
 import { useTheme } from "@/hooks/useTheme"
@@ -27,7 +28,7 @@ export function ProfilePage() {
   const handleSave = async () => {
     const userId = localStorage.getItem("userId")
     try {
-      const res = await fetch(`http://10.0.2.16:3001/api/v0/auth/profile/${userId}`, {
+      const res = await fetch(`${API_BASE_URL}/auth/profile/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editData.name, location: editData.location }),

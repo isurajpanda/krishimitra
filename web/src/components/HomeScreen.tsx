@@ -12,12 +12,11 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
+  const userName = localStorage.getItem("userName") || "Farmer";
   const [isChatMode, setIsChatMode] = useState(false);
   const { messages, input, setInput, isStreaming, streamText, sendMessage } = useChat();
 
   return (
-    /* Fill the h-[100dvh] frame given by MainLayout. Use flex-col so we can slice the
-       space into: top-bar padding | scrollable content | sticky input bar */
     <div className="h-full w-full flex flex-col overflow-hidden relative z-[65]">
 
       {/* Universal TopAppBar for Chat */}
@@ -37,7 +36,7 @@ export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
         actions={
           <div className="flex items-center gap-3">
              <div className="text-right">
-               <div className="text-sm font-bold tracking-wide">Namaste, Raju</div>
+               <div className="text-sm font-bold tracking-wide">Namaste, {userName}</div>
                <div className="text-[10px] text-primary tracking-widest uppercase">{isChatMode ? "AI Chat" : "Dashboard"}</div>
              </div>
              <div

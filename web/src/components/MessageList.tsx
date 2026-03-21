@@ -11,18 +11,19 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, isStreaming, streamText }: MessageListProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages, streamText])
+    scrollToBottom()
+  }, [messages, streamText, isStreaming])
 
   return (
     <div 
-      ref={scrollRef} 
-      className="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-8 scroll-smooth scrollbar-hide bg-transparent"
+      className="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-8 scrollbar-hide bg-transparent"
     >
       {messages.map((msg) => (
         msg.type === "voice" ? (
@@ -39,6 +40,8 @@ export function MessageList({ messages, isStreaming, streamText }: MessageListPr
           <TypingIndicator />
         )
       )}
+      
+      <div ref={messagesEndRef} className="h-4 w-full shrink-0" />
     </div>
   )
 }

@@ -49,6 +49,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
     else startVoiceRecording();
   }
 
+  const userName = localStorage.getItem("userName") || "Farmer";
   const displayTitle = fullText || transcript || "Listening..."
   const orbState = isSpeaking ? 'speaking' : isListening ? 'listening' : 'idle';
 
@@ -123,7 +124,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
         actions={
           <div className="flex items-center gap-3">
              <div className="text-right">
-               <div className="text-sm font-bold tracking-wide">Namaste, Raju</div>
+               <div className="text-sm font-bold tracking-wide">Namaste, {userName}</div>
                <div className="text-[10px] text-primary tracking-widest uppercase">{orbState}</div>
              </div>
              <div 

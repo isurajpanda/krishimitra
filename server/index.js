@@ -1,12 +1,18 @@
 import "dotenv/config";
+import https from "https";
 import express from "express";
 import cors from "cors";
-import http from "http";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import pkg from "pg";
 import crypto from "crypto";
 const { Pool } = pkg;
 import { WebSocketServer } from "ws";
 import { VoiceSession, StreamingThinkStripper } from "./voice-session.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 const SYSTEM_PROMPT = 
@@ -262,7 +268,13 @@ app.use("/api/v0", apiV0);
 
 app.get("/", (_req, res) => res.json({ status: "ok", version: "v0" }));
 
-const server = http.createServer(app);
+const certsPath = path.join(__dirname, "..", "certs");
+const options = {
+  key: fs.readFileSync(path.join(certsPath, "key.pem")),
+  cert: fs.readFileSync(path.join(certsPath, "cert.pem")),
+};
+
+const server = https.createServer(options, app);
 const wss = new WebSocketServer({ server, path: "/api/v0/voice" });
 
 wss.on("connection", (browserWs, req) => {
@@ -272,5 +284,5 @@ wss.on("connection", (browserWs, req) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🚀 KrishiMitra v0 running at http://localhost:${PORT}`);
+  console.log(`\n🚀 KrishiMitra v0 running at https://10.254.238.20:${PORT}`);
 });

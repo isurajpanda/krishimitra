@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react"
+import { API_BASE_URL } from "@/config"
 
 export interface Message {
   id: string
@@ -36,7 +37,7 @@ export function useChat() {
     setStreamText("") 
 
     try {
-      const res = await fetch("http://10.0.2.16:3001/api/v0/ai-chat", {
+      const res = await fetch(`${API_BASE_URL}/ai-chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

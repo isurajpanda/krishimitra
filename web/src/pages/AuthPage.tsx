@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
+import { API_BASE_URL } from "@/config"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTheme } from "@/hooks/useTheme"
 import { Sun, Moon, Leaf, Mail, Lock, Eye, EyeOff, Loader2, User } from "lucide-react"
@@ -42,7 +43,7 @@ export function AuthPage() {
 
     const endpoint = isSignup ? "/auth/signup" : "/auth/login"
     try {
-      const res = await fetch(`http://10.0.2.16:3001/api/v0${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: isSignup ? name : undefined, email, password }),

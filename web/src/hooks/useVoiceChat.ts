@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { WS_BASE_URL } from "@/config";
 
-const SERVER_WS_URL = "ws://10.0.2.16:3001/api/v0/voice";
+const SERVER_WS_URL = `${WS_BASE_URL}/voice`;
 // Number of chunks to accumulate before starting playback (gapless warmup)
 const PLAYBACK_PREBUFFER_COUNT = 10;
 // Startup scheduling offset in seconds — gives AudioContext time to warm up

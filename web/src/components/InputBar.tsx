@@ -1,5 +1,6 @@
 import { Send } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useEffect, useRef } from "react"
 
 interface InputBarProps {
   input: string
@@ -9,10 +10,18 @@ interface InputBarProps {
 }
 
 export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const hasText = input.trim().length > 0
   const canSend = hasText && !isStreaming
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px'
+    }
+  }, [input])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (canSend) onSend()
@@ -20,16 +29,16 @@ export function InputBar({ input, setInput, isStreaming, onSend }: InputBarProps
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-10 py-8 md:py-12 pb-safe flex items-center gap-4">
-      <div className="flex-1 relative h-[72px] md:h-[84px]">
-        <input
-          type="text"
+    <div className="px-4 sm:px-6 lg:px-10 py-6 md:py-8 pb-safe flex items-end gap-4 bg-transparent">
+      <div className="flex-1 relative min-h-[64px] flex items-center">
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Message..."
-          autoComplete="off"
-          className="w-full h-full bg-on-surface/5 border border-outline/30 rounded-3xl px-8 text-on-surface placeholder-on-surface/30 text-lg outline-none transition-all duration-200 focus:bg-on-surface/10 focus:border-primary/40"
+          className="w-full bg-on-surface/5 border border-outline/30 rounded-3xl px-8 py-4 text-on-surface placeholder-on-surface/30 text-lg outline-none transition-all duration-200 focus:bg-on-surface/10 focus:border-primary/40 resize-none overflow-y-auto scrollbar-hide backdrop-blur-xl"
         />
       </div>
 
