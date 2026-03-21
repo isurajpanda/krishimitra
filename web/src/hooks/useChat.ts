@@ -18,9 +18,43 @@ export function useChat() {
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamText, setStreamText] = useState("")
+  const [historyLoaded, setHistoryLoaded] = useState(false)
 
   // Context history for the API (only user and final assistant messages)
   const conversationHistory = useRef<{role: string, content: string}[]>([])
+
+  const _getProfileContext = () => {
+     const name = localStorage.getItem("userName");
+     const loc = localStorage.getItem("userLocation");
+     const crops = localStorage.getItem("userCrops");
+     const type = localStorage.getItem("userFarmType");
+     if (!name && !loc && !crops && !type) return null;
+     return `Farmer Name: ${name || 'Unknown'}. Location: ${loc || 'Unknown'}. Farm Type: ${type || 'Unknown'}. Crops: ${crops || 'Unknown'}.`;
+  };
+
+  const fetchHistory = useCallback(async () => {
+    const userId = localStorage.getItem("userId")
+    if (!userId || historyLoaded) return
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/chat-history/${userId}`)
+      if (res.ok) {
+        const history: {role: "user"|"ai", content: string, timestamp: string}[] = await res.json()
+        const formattedMessages: Message[] = history.map((m, i) => ({
+           id: `hist-${i}`,
+           role: m.role,
+           type: "text",
+           content: m.content,
+           time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }))
+        setMessages(formattedMessages)
+        conversationHistory.current = history.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
+        setHistoryLoaded(true)
+      }
+    } catch (err) {
+      console.error("Failed to fetch chat history:", err)
+    }
+  }, [historyLoaded])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
@@ -45,6 +79,7 @@ export function useChat() {
         body: JSON.stringify({
           messages: conversationHistory.current,
           userId: localStorage.getItem("userId"), // Send userId for storage
+          profileContext: _getProfileContext()
         })
       })
 
@@ -109,6 +144,7 @@ export function useChat() {
     isStreaming,
     streamText,
     sendMessage,
-    sendVoiceDemo
+    sendVoiceDemo,
+    fetchHistory
   }
 }

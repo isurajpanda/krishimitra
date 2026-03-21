@@ -29,29 +29,66 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
     isListening,
     isProcessing,
     isSpeaking,
+    isGreeting,
+    phase,
     transcript,
     fullText,
     micVolumeRef,
     startVoiceRecording,
-    stopVoiceRecording
+    stopVoiceRecording,
+    toggleRecording,
+    stopPlayback
   } = useVoiceChat()
 
   // Cleanup on unmount
   useEffect(() => {
+    // Natural workflow: start listening immediately when opening the screen
+    startVoiceRecording();
+
     return () => {
       stopVoiceRecording()
+      stopPlayback()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const toggleRecording = () => {
-    if (isListening) stopVoiceRecording();
-    else startVoiceRecording();
-  }
-
   const userName = localStorage.getItem("userName") || "Farmer";
-  const displayTitle = fullText || transcript || "Listening..."
-  const orbState = isSpeaking ? 'speaking' : isListening ? 'listening' : 'idle';
+  
+  let displayTitle = "Listening...";
+  let headerStatus = "Listening";
+  let hintText = "Tap orb to send";
+
+  switch (phase) {
+    case 'greeting':
+      displayTitle = fullText || "Hello!";
+      headerStatus = "Greeting";
+      hintText = "Tap orb to skip";
+      break;
+    case 'listening':
+      displayTitle = transcript || "Listening...";
+      headerStatus = "Listening";
+      hintText = "Tap orb to send";
+      break;
+    case 'processing':
+      displayTitle = "Thinking...";
+      headerStatus = "Thinking";
+      hintText = "Processing your query...";
+      break;
+    case 'speaking':
+      displayTitle = fullText || "Speaking...";
+      headerStatus = "Speaking";
+      hintText = "Tap orb to interrupt";
+      break;
+    case 'idle':
+    default:
+      displayTitle = "How can KrishiMitra help you today?";
+      headerStatus = "Ready";
+      hintText = "Tap orb to start";
+      break;
+  }
+  
+  // Also pass down a boolean for visual styling to orb state
+  const orbState = (isSpeaking || isGreeting) ? 'speaking' : isListening ? 'listening' : 'idle';
 
   // Fixed per-bar offsets for randomized look that stays stable across renders
   const NUM_BARS = 48;
@@ -125,7 +162,7 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
           <div className="flex items-center gap-3">
              <div className="text-right">
                <div className="text-sm font-bold tracking-wide">Namaste, {userName}</div>
-               <div className="text-[10px] text-primary tracking-widest uppercase">{orbState}</div>
+               <div className="text-[10px] text-primary tracking-widest uppercase">{headerStatus}</div>
              </div>
              <div 
                className="bg-surface-container rounded-full w-10 h-10 bg-center bg-cover border border-primary/20 shrink-0 shadow-[0_0_15px_rgba(0,255,65,0.2)]" 
@@ -150,8 +187,8 @@ export function VoiceModeScreen({ onClose }: VoiceModeScreenProps) {
 
       {/* Listening status and Orb */}
       <div className="h-[250px] md:h-[350px] w-full flex flex-col items-center justify-end relative pb-10 md:pb-16 mt-auto shrink-0">
-        <div className={`text-on-surface/60 text-sm md:text-base font-medium mb-12 md:mb-16 transition-opacity duration-300 ${isListening ? 'animate-pulse opacity-100' : 'opacity-0'}`}>
-          {isProcessing ? 'Thinking...' : 'Tap orb to stop'}
+        <div className={`text-on-surface/60 text-sm md:text-base font-medium mb-12 md:mb-16 transition-opacity duration-300 ${phase === 'idle' ? 'animate-pulse opacity-100' : phase !== 'greeting' ? 'opacity-100' : 'opacity-0'}`}>
+          {hintText}
         </div>
 
         {/* Glow behind orb */}

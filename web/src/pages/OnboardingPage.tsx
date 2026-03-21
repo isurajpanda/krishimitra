@@ -33,8 +33,11 @@ export function OnboardingPage() {
     setIsLoading(true)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const loc = `Farm Area (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`
+        const { latitude, longitude } = pos.coords
+        const loc = `Farm Area (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`
         setFormData({ ...formData, location: loc })
+        localStorage.setItem("userLat", latitude.toString())
+        localStorage.setItem("userLon", longitude.toString())
         setIsLoading(false)
       },
       (err) => {
@@ -55,6 +58,8 @@ export function OnboardingPage() {
       })
       if (res.ok) {
         localStorage.setItem("userLocation", formData.location)
+        localStorage.setItem("userFarmType", formData.farmType)
+        localStorage.setItem("userCrops", formData.primaryCrops.join(", "))
         localStorage.setItem("userOnboarded", "true")
         navigate("/")
       }
@@ -173,7 +178,7 @@ export function OnboardingPage() {
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {step === 3 ? "Start Farming" : "Continue"}
+                  {step === 3 ? "Let's Farm" : "Continue"}
                   <ChevronRight className="w-5 h-5" />
                 </>
               )}

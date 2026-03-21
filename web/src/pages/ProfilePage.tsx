@@ -5,20 +5,49 @@ import { motion } from "framer-motion"
 import { TopAppBar } from "@/components/TopAppBar"
 import { useTheme } from "@/hooks/useTheme"
 import { 
-  Sun, Moon, MapPin, Tractor, Sprout, Leaf, PlusCircle, 
+  Sun, Moon, MapPin, Tractor, Sprout, PlusCircle, 
   Waves, Bug, TrendingUp, Landmark, FlaskConical, HelpCircle, 
-  Share2, Star, LogOut, ChevronRight, User, Mail, Check, X, Pencil
+  Share2, Star, LogOut, ChevronRight, User, Mail, Check, X, Pencil, Loader2
 } from "lucide-react"
+import { useEffect } from "react"
 
 export function ProfilePage() {
   const { toggleTheme, isDark } = useTheme()
   const navigate = useNavigate()
   
   const [isEditing, setIsEditing] = useState(false)
-  const [editData, setEditData] = useState({
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
     name: localStorage.getItem("userName") || "",
-    location: localStorage.getItem("userLocation") || ""
+    location: localStorage.getItem("userLocation") || "",
+    farmType: localStorage.getItem("userFarmType") || "Small Scale",
+    primaryCrops: (localStorage.getItem("userCrops") || "").split(", ").filter(Boolean)
   })
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const userId = localStorage.getItem("userId")
+      if (!userId) return
+      try {
+         const res = await fetch(`${API_BASE_URL}/auth/profile/${userId}`)
+         if (res.ok) {
+           const data = await res.json()
+           const updated = {
+              name: data.name || "",
+              location: data.location || "",
+              farmType: data.farm_type || "Small Scale",
+              primaryCrops: data.primary_crops || []
+           }
+           setFormData(updated)
+           localStorage.setItem("userName", updated.name)
+           localStorage.setItem("userLocation", updated.location)
+           localStorage.setItem("userFarmType", updated.farmType)
+           localStorage.setItem("userCrops", updated.primaryCrops.join(", "))
+         }
+      } catch (e) { console.error(e) }
+    }
+    fetchProfile()
+  }, [])
   
   const handleLogout = () => {
     localStorage.clear()
@@ -27,22 +56,31 @@ export function ProfilePage() {
 
   const handleSave = async () => {
     const userId = localStorage.getItem("userId")
+    setIsLoading(true)
     try {
       const res = await fetch(`${API_BASE_URL}/auth/profile/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editData.name, location: editData.location }),
+        body: JSON.stringify({ 
+          name: formData.name, 
+          location: formData.location,
+          farmType: formData.farmType,
+          primaryCrops: formData.primaryCrops
+        }),
       })
       
       if (res.ok) {
-        localStorage.setItem("userName", editData.name)
-        localStorage.setItem("userLocation", editData.location)
+        localStorage.setItem("userName", formData.name)
+        localStorage.setItem("userLocation", formData.location)
+        localStorage.setItem("userFarmType", formData.farmType)
+        localStorage.setItem("userCrops", formData.primaryCrops.join(", "))
         setIsEditing(false)
-        // Force re-render of components using these values if needed
         window.dispatchEvent(new Event('storage')) 
       }
     } catch (err) {
       console.error(err)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -74,17 +112,37 @@ export function ProfilePage() {
             <div className="text-center md:text-left flex-1">
               {isEditing ? (
                 <div className="space-y-4">
-                  <input 
-                    className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-2xl font-bold w-full text-on-surface"
-                    value={editData.name}
-                    onChange={e => setEditData({...editData, name: e.target.value})}
-                  />
-                  <input 
-                    className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
-                    value={editData.location}
-                    onChange={e => setEditData({...editData, location: e.target.value})}
-                    placeholder="Location"
-                  />
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Name</label>
+                    <input 
+                      className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-2xl font-bold w-full text-on-surface"
+                      value={formData.name}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Location</label>
+                    <input 
+                      className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
+                      value={formData.location}
+                      onChange={e => setFormData({...formData, location: e.target.value})}
+                      placeholder="Location"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-primary font-bold">Farm Type</label>
+                      <select 
+                        className="bg-surface-container border border-primary/30 rounded-xl px-4 py-2 text-sm w-full text-on-surface"
+                        value={formData.farmType}
+                        onChange={e => setFormData({...formData, farmType: e.target.value})}
+                      >
+                        <option>Small Scale (1-2 Acres)</option>
+                        <option>Medium Scale (3-10 Acres)</option>
+                        <option>Large Scale (10+ Acres)</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -117,9 +175,10 @@ export function ProfilePage() {
                 <>
                   <button 
                     onClick={handleSave}
-                    className="px-6 py-3 rounded-2xl bg-primary text-on-primary font-bold flex items-center gap-2 hover:bg-primary-dark transition-all"
+                    disabled={isLoading}
+                    className="px-6 py-3 rounded-2xl bg-primary text-on-primary font-bold flex items-center gap-2 hover:bg-primary-dark transition-all disabled:opacity-50"
                   >
-                    <Check className="w-5 h-5" />
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                     Save
                   </button>
                   <button 
@@ -165,7 +224,9 @@ export function ProfilePage() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-              <span className="font-label text-xl font-bold text-primary glow-text">12.5</span>
+              <span className="font-label text-xl font-bold text-primary glow-text">
+                {formData.farmType.includes("Small") ? "1.5" : formData.farmType.includes("Medium") ? "6.5" : "15+"}
+              </span>
               <span className="text-[9px] font-label text-on-surface-variant uppercase mt-1 tracking-widest">Acres</span>
             </div>
             <div className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center">
@@ -179,31 +240,24 @@ export function ProfilePage() {
           </div>
           
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <Sprout className="w-5 h-5 text-primary" />
+            {formData.primaryCrops.map((crop, idx) => (
+              <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-primary/10 hover:border-primary/30 transition-colors cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <Sprout className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-on-surface">{crop}</p>
+                    <p className="text-xs text-on-surface-variant">Active Crop</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-on-surface">North Field</p>
-                  <p className="text-xs text-on-surface-variant">Rice • 5.2 Acres</p>
-                </div>
+                <div className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,65,0.2)]">Growing</div>
               </div>
-              <div className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,65,0.2)]">Growing</div>
-            </div>
+            ))}
             
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-surface-container border border-outline/20 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-on-surface/5 flex items-center justify-center border border-outline/20">
-                  <Leaf className="w-5 h-5 text-on-surface-variant" />
-                </div>
-                <div>
-                  <p className="font-bold text-on-surface">River Side</p>
-                  <p className="text-xs text-on-surface-variant">Wheat • 7.3 Acres</p>
-                </div>
-              </div>
-              <div className="px-2.5 py-1 rounded-full bg-surface-container border border-outline/20 text-on-surface-variant text-[10px] font-bold uppercase tracking-wider">Dormant</div>
-            </div>
+            {formData.primaryCrops.length === 0 && (
+               <div className="text-center py-4 text-on-surface-variant text-sm italic">No crops listed</div>
+            )}
             
             <button className="w-full p-4 rounded-2xl border border-dashed border-primary/20 bg-primary/5 flex items-center justify-center gap-2 text-primary/70 hover:bg-primary/10 hover:text-primary transition-all active:scale-[0.98]">
               <PlusCircle className="w-5 h-5" />

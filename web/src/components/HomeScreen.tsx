@@ -1,6 +1,6 @@
 import { ArrowLeft, Mic, MessageSquare } from "lucide-react"
 import { TopAppBar } from "@/components/TopAppBar"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useChat } from "@/hooks/useChat"
 import { MessageList } from "./MessageList"
 import { InputBar } from "./InputBar"
@@ -14,7 +14,11 @@ interface HomeScreenProps {
 export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
   const userName = localStorage.getItem("userName") || "Farmer";
   const [isChatMode, setIsChatMode] = useState(false);
-  const { messages, input, setInput, isStreaming, streamText, sendMessage } = useChat();
+  const { messages, input, setInput, isStreaming, streamText, sendMessage, fetchHistory } = useChat();
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden relative z-[65]">

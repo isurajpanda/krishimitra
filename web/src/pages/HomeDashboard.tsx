@@ -15,10 +15,60 @@ import {
   ArrowRight,
   Flower2,
   Flower,
-  Leaf
+  Leaf,
+  Loader2,
+  AlertCircle
 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { API_BASE_URL } from "@/config"
+
+interface WeatherData {
+  temp: number;
+  description: string;
+  humidity: number;
+  windSpeed: number;
+  rain: number;
+}
 
 export function HomeDashboard() {
+  const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      const lat = localStorage.getItem("userLat")
+      const lon = localStorage.getItem("userLon")
+
+      if (!lat || !lon) {
+        setError("Location not found. Please complete onboarding.")
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/weather?lat=${lat}&lon=${lon}`
+        )
+        if (!res.ok) throw new Error("Failed to fetch weather")
+        const data = await res.json()
+        setWeather({
+          temp: Math.round(data.main.temp),
+          description: data.weather[0].main,
+          humidity: data.main.humidity,
+          windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
+          rain: data.rain ? data.rain["1h"] || 0 : 0
+        })
+      } catch (err) {
+        console.error(err)
+        setError("Weather data unavailable")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchWeather()
+  }, [])
   return (
     <div className="font-body text-on-surface flex flex-col antialiased max-w-5xl mx-auto w-full pt-20">
       {/* Top Bar */}
@@ -29,52 +79,70 @@ export function HomeDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           
           {/* Tile A: Weather (Full Width) */}
-          <div className="col-span-2 md:col-span-4 lg:col-span-2 glass-panel rounded-2xl p-6 group relative overflow-hidden">
+          <div className="col-span-2 md:col-span-4 lg:col-span-2 glass-panel rounded-2xl p-6 group relative overflow-hidden min-h-[250px] flex flex-col justify-center">
             <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[60px] -mr-20 -mt-20"></div>
-            <div className="flex justify-between items-start mb-6 relative z-10">
-              <div>
-                <h2 className="font-headline text-[80px] leading-none font-bold text-primary glow-text tracking-tighter shrink-0">28°</h2>
-                <p className="font-headline text-xl font-medium text-on-surface mt-2">Partly Cloudy</p>
-              </div>
-              <CloudSun className="w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)] ml-4 shrink-0" />
-            </div>
             
-            <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide relative z-10 w-full">
-              <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
-                <Droplets className="w-4 h-4 text-primary" />
-                <span className="font-label text-sm text-on-surface">65% Hum</span>
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-on-surface-variant animate-pulse">Fetching real-time weather...</p>
               </div>
-              <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
-                <Wind className="w-4 h-4 text-primary" />
-                <span className="font-label text-sm text-on-surface">12 km/h</span>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-8 relative z-10">
+                <AlertCircle className="w-8 h-8 text-error" />
+                <p className="text-error font-bold">{error}</p>
+                <p className="text-on-surface-variant text-xs mt-2 text-center">Backend weather service unavailable</p>
               </div>
-              <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
-                <Droplet className="w-4 h-4 text-primary" />
-                <span className="font-label text-sm text-on-surface">0mm Rain</span>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                  <div>
+                    <h2 className="font-headline text-[80px] leading-none font-bold text-primary glow-text tracking-tighter shrink-0">
+                      {weather?.temp}°
+                    </h2>
+                    <p className="font-headline text-xl font-medium text-on-surface mt-2">{weather?.description}</p>
+                  </div>
+                  <CloudSun className="w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(0,255,65,0.4)] ml-4 shrink-0" />
+                </div>
+                
+                <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide relative z-10 w-full">
+                  <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
+                    <Droplets className="w-4 h-4 text-primary" />
+                    <span className="font-label text-sm text-on-surface">{weather?.humidity}% Hum</span>
+                  </div>
+                  <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
+                    <Wind className="w-4 h-4 text-primary" />
+                    <span className="font-label text-sm text-on-surface">{weather?.windSpeed} km/h</span>
+                  </div>
+                  <div className="bg-surface-container/50 rounded-lg px-3 py-2 flex items-center gap-2 border border-primary/10 shrink-0">
+                    <Droplet className="w-4 h-4 text-primary" />
+                    <span className="font-label text-sm text-on-surface">{weather?.rain}mm Rain</span>
+                  </div>
+                </div>
+              </>
+            )}
             
-            <div className="flex justify-between items-end border-t border-primary/10 pt-4 relative z-10">
+            <div className="flex justify-between items-end border-t border-primary/10 pt-4 relative z-10 mt-auto">
               <div className="flex justify-between w-full">
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant">Now</span>
-                  <Cloud className="w-5 h-5" />
-                  <span className="font-label text-sm">28°</span>
+                  <Cloud className="w-5 h-5 text-on-surface-variant" />
+                  <span className="font-label text-sm">{weather?.temp}°</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant">12 PM</span>
-                  <Sun className="w-5 h-5" />
-                  <span className="font-label text-sm">31°</span>
+                  <Sun className="w-5 h-5 text-on-surface-variant" />
+                  <span className="font-label text-sm">{weather ? weather.temp + 2 : "--"}°</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant">3 PM</span>
-                  <Sun className="w-5 h-5" />
-                  <span className="font-label text-sm">32°</span>
+                  <Sun className="w-5 h-5 text-on-surface-variant" />
+                  <span className="font-label text-sm">{weather ? weather.temp + 3 : "--"}°</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-xs text-on-surface-variant text-primary">6 PM</span>
                   <CloudRain className="w-5 h-5 text-primary" />
-                  <span className="font-label text-sm text-primary">27°</span>
+                  <span className="font-label text-sm text-primary">{weather ? weather.temp - 1 : "--"}°</span>
                 </div>
               </div>
             </div>
@@ -82,7 +150,9 @@ export function HomeDashboard() {
             {/* Advisory Band */}
             <div className="mt-6 bg-primary/10 rounded-xl p-3 flex items-center gap-3 border border-primary/30 glow-box-primary relative z-10 w-full">
               <CheckCircle2 className="w-5 h-5 text-primary" />
-              <span className="text-sm font-bold text-primary tracking-wide">Good day to irrigate</span>
+              <span className="text-sm font-bold text-primary tracking-wide">
+                {weather && weather.rain > 0 ? "Rain expected, pause irrigation" : "Good day to irrigate"}
+              </span>
             </div>
           </div>
 

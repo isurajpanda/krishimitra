@@ -1,12 +1,18 @@
 import WebSocket from "ws";
+import OpenAI from "openai";
 
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 
+const openai = new OpenAI({
+  apiKey: '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',
+  baseURL: 'https://integrate.api.nvidia.com/v1',
+});
+
 const SYSTEM_PROMPT =
-  "You are KrishiMitra, a friendly AI voice assistant for Indian farmers. " +
+  "You are KrishiMitra, a friendly AI voice assistant for Indian farmers. You are operating in a LIVE VOICE CONVERSATION. " +
   "LANGUAGE: Auto-detect and respond in the user's language using native script only (no transliteration). Hindi → Devanagari, Odia → Odia script, etc. " +
-  "VOICE STYLE: Natural and speech-friendly. No markdown, bullets, emojis, or special characters. " +
-  "LENGTH: Be flexible. Keep it concise for simple greetings or confirmations, but provide detailed, step-by-step explanations for complex agricultural queries (e.g., how to grow a crop, pest control). " +
+  "VOICE STYLE: Natural, conversational, and speech-friendly. No markdown, bullets, emojis, or special characters. " +
+  "ENGAGEMENT & LENGTH: Since this is a voice call, keep your responses concise, punchy, and highly manageable. Avoid long monologues. Talk and engage directly with the farmer, show empathy for their issues, and proactively ask short follow-up questions to understand their situation better. " +
   "EXPERTISE: Crop advice, soil health, fertilizers, pesticides, weather, government schemes, market prices. Keep advice practical, local, and simple. " +
   "CONVERSATION: Handle topic switches smoothly. Remember context within the session. " +
   "SAFETY: Never guess. If unsure, say so and suggest a local agricultural expert. Be cautious with chemical or medical guidance. " +
@@ -23,8 +29,10 @@ const SYSTEM_PROMPT =
  * Server  → streams { type: "llm_token" } and { type: "audio_chunk" } back
  */
 export class VoiceSession {
-  constructor(browserWs) {
+  constructor(browserWs, ip) {
     this.browserWs = browserWs;
+    this.ip = ip;
+    this.userId = "unknown_user";
     this.ttsWs = null;
     this.ttsReady = false;
     this.ttsQueue = [];
@@ -34,9 +42,17 @@ export class VoiceSession {
     this.currentInterim = "";
     this.sttAudioBuffer = [];
     this.history = []; // Persists for the life of the voice session
-    this._isLLMRunning = false;
+    this.profileContext = ""; 
     this.sessionId = Math.random().toString(36).substring(7);
-    console.log(`[Session:${this.sessionId}] Created new voice session`);
+    this._log('info', `Created new voice session`);
+  }
+
+  _log(level, ...args) {
+    const ts = new Date().toISOString();
+    const prefix = `[${ts}] [IP:${this.ip}] [U:${this.userId}] [S:${this.sessionId}]`;
+    if (level === 'error') console.error(prefix, ...args);
+    else if (level === 'warn') console.warn(prefix, ...args);
+    else console.log(prefix, ...args);
   }
 
   // ─── TTS WebSocket ────────────────────────────────────────────────────────
@@ -110,16 +126,44 @@ export class VoiceSession {
     try {
       msg = JSON.parse(message.toString());
     } catch {
+      this._log('warn', 'Failed to parse incoming browser WebSocket message');
       return;
     }
+    
+    // Attempt extreme verbose extraction 
+    if (msg.userId && this.userId === "unknown_user") {
+       this.userId = msg.userId;
+       this._log('info', `Assigned user ID to session context`);
+    }
+
+    this._log('info', `[Browser->Server] Received message type: ${msg.type}`);
 
     switch (msg.type) {
+      case "interrupt":
+        this._log('info', `[INTERRUPT] User clicked orb. Halting TTS and dropping queue.`);
+        this._isLLMRunning = false;
+        this.ttsQueue = [];
+        if (this.ttsWs?.readyState === WebSocket.OPEN) {
+          this.ttsWs.close();
+        }
+        break;
+
       case "stt_start":
+        this._log('info', `[STT] Initializing new STT turn.`);
+        this._isLLMRunning = false;
         this.latestTranscript = "";
         this.finalizedTranscripts = "";
         this.currentInterim = "";
         this.sttAudioBuffer = [];
         clearTimeout(this.vadAutoStopTimer);
+        
+        // Inject initial greeting context so the AI remembers introducing itself
+        if (msg.greetingText && this.history.length === 0) {
+            this._log('info', `[STT] Injecting initial greeting history context`);
+            this.history.push({ role: "user", content: "hi" });
+            this.history.push({ role: "assistant", content: msg.greetingText });
+        }
+
         this._setupSTT();
         break;
 
@@ -136,6 +180,9 @@ export class VoiceSession {
         break;
 
       case "run_llm":
+        if (msg.profileContext) {
+           this.profileContext = msg.profileContext;
+        }
         if (msg.transcript?.trim()) {
           this._runLLM(msg.transcript.trim());
         } else {
@@ -205,12 +252,12 @@ export class VoiceSession {
              this.currentInterim = "";
          }
 
-         // Custom Auto-Stop based on 1.5s of silence after speech
+         // Custom Auto-Stop based on 800ms of silence after speech (optimized for snappy conversation)
          clearTimeout(this.vadAutoStopTimer);
          this.vadAutoStopTimer = setTimeout(() => {
-             console.log(`[STT] Custom Auto-Stop silence threshold reached.`);
+             this._log('info', `[STT] Custom Auto-Stop silence threshold (800ms) reached.`);
              this._triggerSttStop();
-         }, 1800);
+         }, 800);
 
       } else if (msg.type === "events" && msg.data?.event_type === "END_SPEECH") {
          console.log(`[STT:${this.sessionId}] VAD END_SPEECH detected. Current Transcript: "${this.latestTranscript}"`);
@@ -227,10 +274,14 @@ export class VoiceSession {
 
   // ─── STT Helper ───────────────────────────────────────────────────────────
   _triggerSttStop() {
-    console.log(`[STT:${this.sessionId}] _triggerSttStop invoked`);
+    this._log('info', `[STT] Triggering Auto-Stop. Finalizing transcripts.`);
     clearTimeout(this.vadAutoStopTimer);
-    if (!this.latestTranscript && !this.finalizedTranscripts) return; // Prevent double trigger
+    if (!this.latestTranscript && !this.finalizedTranscripts) {
+        this._log('warn', `[STT] Ignored stop: transcript was entirely empty.`);
+        return; 
+    }
     
+    this._log('info', `[STT] Sending stt_auto_stop to browser to pause microphone sending.`);
     this._sendToBrowser({ type: "stt_auto_stop" });
     if (this.sttWs?.readyState === WebSocket.OPEN) {
        this.sttWs.send(JSON.stringify({ type: "flush" }));
@@ -249,20 +300,23 @@ export class VoiceSession {
         this._sendToBrowser({ type: "error", message: "Didn't catch that." });
         this._sendToBrowser({ type: "audio_done" }); 
       }
-      if (this.sttWs?.readyState === WebSocket.OPEN) this.sttWs.close();
-    }, 500);
+      
+      if (this.sttWs?.readyState === WebSocket.OPEN) {
+         this.sttWs.close();
+      }
+    }, 50);
   }
 
   // ─── LLM → TTS pipeline ───────────────────────────────────────────────────
 
   async _runLLM(transcript) {
     if (this._isLLMRunning) {
-       console.log(`[LLM:${this.sessionId}] Ignored trigger: LLM already running.`);
+       this._log('warn', `[LLM] Ignored trigger: LLM already running for previous turn.`);
        return;
     }
     this._isLLMRunning = true;
 
-    console.log(`[LLM:${this.sessionId}] Starting generation for: "${transcript}"`);
+    this._log('info', `[LLM] Starting generation for query: "${transcript}"`);
     this._sendToBrowser({ type: "llm_start" });
 
     const startTime = Date.now();
@@ -291,89 +345,63 @@ export class VoiceSession {
     // console.log("[LLM] Messages:", JSON.stringify(this.history.slice(-10), null, 2));
 
     try {
-      const res = await fetch("https://api.sarvam.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "API-Subscription-Key": SARVAM_API_KEY,
-        },
-        body: JSON.stringify({
-          model: "sarvam-105b",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...this.history.slice(-10), // Send last 10 messages for context
-            { role: "user", content: transcript },
-          ],
-          temperature: 0.6,
-          stream: true,
-        }),
+      const completion = await openai.chat.completions.create({
+        model: "openai/gpt-oss-120b",
+        messages: [
+          { 
+            role: "system", 
+            content: this.profileContext 
+              ? `${SYSTEM_PROMPT} USER PROFILE: ${this.profileContext}` 
+              : SYSTEM_PROMPT 
+          },
+          ...this.history.slice(-10),
+          { role: "user", content: transcript },
+        ],
+        temperature: 1,
+        top_p: 1,
+        max_tokens: 4096,
+        stream: true
       });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error(`[LLM:${this.sessionId}] API error (${res.status}):`, errText);
-        this._sendToBrowser({ type: "error", message: "LLM API error: " + errText });
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
       let fullText = "";
-      
       const stripper = new StreamingThinkStripper();
       let sentenceBuffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      for await (const chunk of completion) {
+        if (!this._isLLMRunning) {
+           console.log(`[LLM:${this.sessionId}] Stream interrupted by user orb tap. Canceling chunk loop.`);
+           break;
+        }
 
-        const chunkText = decoder.decode(value, { stream: true });
-        const lines = chunkText.split("\n");
+        const textToken = chunk.choices[0]?.delta?.content || "";
+        
+        if (!textToken) continue;
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") continue;
+        if (!firstTokenTime) {
+           firstTokenTime = Date.now();
+           console.log(`[LLM:${this.sessionId}] First token latency: ${firstTokenTime - startTime}ms`);
+        }
 
-          try {
-            const json = JSON.parse(data);
-            const token = json.choices?.[0]?.delta?.content || "";
-            if (!token) continue;
-
-            if (!firstTokenTime) {
-               firstTokenTime = Date.now();
-               console.log(`[LLM:${this.sessionId}] First token latency: ${firstTokenTime - startTime}ms`);
-            }
-
-            fullText += token;
-            this._sendToBrowser({ type: "llm_token", text: token });
-            
-            const cleanToken = stripper.process(token);
-            if (cleanToken) {
-              sentenceBuffer += cleanToken;
+        fullText += textToken;
+        this._sendToBrowser({ type: "llm_token", text: textToken });
+        
+        const cleanToken = stripper.process(textToken);
+        if (cleanToken) {
+           sentenceBuffer += cleanToken;
+           
+           const match = sentenceBuffer.match(/^(.*?[।.!?\n])\s+(.*)$/s) || 
+                        (sentenceBuffer.length > 100 ? sentenceBuffer.match(/^(.*?[।.!?\n])(.*)$/s) : null);
+           
+           if (match) {
+              const sentence = match[1].trim();
+              sentenceBuffer = match[2] || "";
               
-              // split when encountering a punctuation mark followed by a space or end of token
-              // Split when encountering punctuation followed by space, or if the buffer is getting long (100+ chars)
-              const match = sentenceBuffer.match(/^(.*?[।.!?\n])\s+(.*)$/s) || 
-                           (sentenceBuffer.length > 100 ? sentenceBuffer.match(/^(.*?[।.!?\n])(.*)$/s) : null);
-              
-              if (match) {
-                 const sentence = match[1].trim();
-                 sentenceBuffer = match[2] || "";
-                 
-                 // Only send if it's a reasonably sized chunk (e.g. at least 5 chars)
-                 // to avoid sending tiny snippets that cause jitter.
-                 if (sentence.length >= 5) {
-                    this._sendToTTS(sentence);
-                 } else {
-                    // Put it back to accumulate with next tokens
-                    sentenceBuffer = sentence + " " + sentenceBuffer;
-                 }
+              if (sentence.length >= 5) {
+                 this._sendToTTS(sentence);
+              } else {
+                 sentenceBuffer = sentence + " " + sentenceBuffer;
               }
-            }
-          } catch {
-            // skip malformed SSE line
-          }
+           }
         }
       }
 

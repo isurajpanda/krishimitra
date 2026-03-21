@@ -175,22 +175,64 @@ apiV0.post("/auth/login", async (req, res) => {
   }
 });
 
-// Update Profile (Onboarding)
+// Get Profile
+apiV0.get("/auth/profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query("SELECT id, name, email, location, farm_type, primary_crops, onboarded FROM users WHERE id = $1", [userId]);
+    if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("[Profile Fetch Error]:", err);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+// Update Profile (Onboarding & Profile Page)
 apiV0.patch("/auth/profile/:userId", async (req, res) => {
   const { userId } = req.params;
-  const { location, farmType, primaryCrops } = req.body;
+  const { name, location, farmType, primaryCrops } = req.body;
 
   try {
-    const result = await pool.query(
-      "UPDATE users SET location = $1, farm_type = $2, primary_crops = $3, onboarded = TRUE WHERE id = $4 RETURNING *",
-      [location, farmType, primaryCrops, userId]
-    );
+    // Dynamically build update query to handle partial updates
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (name !== undefined) { updates.push(`name = $${idx++}`); values.push(name); }
+    if (location !== undefined) { updates.push(`location = $${idx++}`); values.push(location); }
+    if (farmType !== undefined) { updates.push(`farm_type = $${idx++}`); values.push(farmType); }
+    if (primaryCrops !== undefined) { updates.push(`primary_crops = $${idx++}`); values.push(primaryCrops); }
     
+    // Always mark as onboarded if it was a profile update
+    updates.push(`onboarded = TRUE`);
+
+    if (updates.length === 0) return res.status(400).json({ error: "No fields to update" });
+
+    values.push(userId);
+    const query = `UPDATE users SET ${updates.join(", ")} WHERE id = $${idx} RETURNING *`;
+    
+    const result = await pool.query(query, values);
     if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
     res.json({ success: true, user: result.rows[0] });
   } catch (err) {
     console.error("[Profile Update Error]:", err);
     res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// Get Chat History
+apiV0.get("/auth/chat-history/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT role, message as content, timestamp FROM chat_history WHERE user_id = $1 ORDER BY timestamp ASC LIMIT 50",
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("[Chat History Error]:", err);
+    res.status(500).json({ error: "Failed to fetch chat history" });
   }
 });
 
@@ -208,7 +250,15 @@ apiV0.post("/ai-chat", async (req, res) => {
       },
       body: JSON.stringify({
         model: "sarvam-105b",
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+        messages: [
+          { 
+            role: "system", 
+            content: req.body.profileContext 
+              ? `${SYSTEM_PROMPT} USER PROFILE: ${req.body.profileContext}` 
+              : SYSTEM_PROMPT 
+          }, 
+          ...messages
+        ],
         stream: true,
       }),
     });
@@ -226,13 +276,15 @@ apiV0.post("/ai-chat", async (req, res) => {
     const decoder = new TextDecoder();
     const stripper = new StreamingThinkStripper();
     let fullText = "";
+    let streamBuffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
+      streamBuffer += decoder.decode(value, { stream: true });
+      const lines = streamBuffer.split("\n");
+      streamBuffer = lines.pop() || "";
 
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
@@ -266,6 +318,33 @@ apiV0.post("/ai-chat", async (req, res) => {
   }
 });
 
+// Weather Proxy Endpoint
+apiV0.get("/weather", async (req, res) => {
+  const { lat, lon } = req.query;
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+
+  if (!lat || !lon) {
+    return res.status(400).json({ error: "Missing latitude or longitude" });
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
+    );
+    
+    if (!response.ok) {
+      const errData = await response.json();
+      return res.status(response.status).json(errData);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("[Weather Proxy Error]:", err);
+    res.status(500).json({ error: "Failed to fetch weather data" });
+  }
+});
+
 app.use("/api/v0", apiV0);
 
 app.get("/", (_req, res) => res.json({ status: "ok", version: "v0" }));
@@ -280,7 +359,9 @@ const server = https.createServer(options, app);
 const wss = new WebSocketServer({ server, path: "/api/v0/voice" });
 
 wss.on("connection", (browserWs, req) => {
-  const session = new VoiceSession(browserWs);
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || "unknown_ip";
+  const session = new VoiceSession(browserWs, ip);
+  console.log(`[${new Date().toISOString()}] [IP:${ip}] New WebSocket connection established.`);
   browserWs.on("message", (msg) => session.handleBrowserMessage(msg));
   browserWs.on("close", () => session.destroy());
 });
