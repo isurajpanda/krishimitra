@@ -7,7 +7,7 @@ import { viteSingleFile } from "vite-plugin-singlefile"
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   build: {
-    outDir: '../server/dist',
+    outDir: '../dist',
     emptyOutDir: true,
     rollupOptions: {
       input: path.resolve(__dirname, 'index.html')
