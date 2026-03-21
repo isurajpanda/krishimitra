@@ -4,7 +4,7 @@ import OpenAI from "openai";
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 
 const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: process.env.NVIDIA_API_KEY,
   baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 

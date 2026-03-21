@@ -7,7 +7,7 @@ const router = express.Router();
 
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: process.env.NVIDIA_API_KEY,
   baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
@@ -24,75 +24,56 @@ router.post("/ai-chat", async (req, res) => {
   if (!messages) return res.status(400).json({ error: "Missing messages" });
 
   try {
-    const response = await fetch("https://api.sarvam.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "API-Subscription-Key": SARVAM_API_KEY,
-      },
-      body: JSON.stringify({
-        model: "sarvam-105b",
-        messages: [
-          { 
-            role: "system", 
-            content: req.body.profileContext 
-              ? `${SYSTEM_PROMPT} USER PROFILE: ${req.body.profileContext}` 
-              : SYSTEM_PROMPT 
-          }, 
-          ...messages
-        ],
-        stream: true,
-      }),
+    const stream = await openai.chat.completions.create({
+      model: "openai/gpt-oss-120b",
+      messages: [
+        { 
+          role: "system", 
+          content: req.body.profileContext 
+            ? `${SYSTEM_PROMPT} USER PROFILE: ${req.body.profileContext}` 
+            : SYSTEM_PROMPT 
+        }, 
+        ...messages
+      ],
+      stream: true,
+      temperature: 1,
+      top_p: 1,
+      max_tokens: 4096,
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({ error: errText });
-    }
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
     const stripper = new StreamingThinkStripper();
     let fullText = "";
-    let streamBuffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    for await (const chunk of stream) {
+      const token = chunk.choices?.[0]?.delta?.content || "";
+      if (!token) continue;
 
-      streamBuffer += decoder.decode(value, { stream: true });
-      const lines = streamBuffer.split("\n");
-      streamBuffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const dataStr = line.slice(6).trim();
-        if (dataStr === "[DONE]") {
-          if (userId && fullText) {
-             const userMsg = messages[messages.length - 1].content;
-             await pool.query("INSERT INTO chat_history (user_id, role, message) VALUES ($1, $2, $3)", [userId, 'user', userMsg]);
-             await pool.query("INSERT INTO chat_history (user_id, role, message) VALUES ($1, $2, $3)", [userId, 'ai', fullText]);
-          }
-          res.write("data: [DONE]\n\n");
-          continue;
-        }
-
-        try {
-          const json = JSON.parse(dataStr);
-          const token = json.choices?.[0]?.delta?.content || "";
-          const cleanToken = stripper.process(token);
-          if (cleanToken) {
-            fullText += cleanToken;
-            const cleanJson = { choices: [{ delta: { content: cleanToken } }] };
-            res.write(`data: ${JSON.stringify(cleanJson)}\n\n`);
-          }
-        } catch (e) { }
+      const cleanToken = stripper.process(token);
+      if (cleanToken) {
+        fullText += cleanToken;
+        const cleanJson = { choices: [{ delta: { content: cleanToken } }] };
+        res.write(`data: ${JSON.stringify(cleanJson)}\n\n`);
       }
     }
+    
+    const finalClean = stripper.flush();
+    if (finalClean) {
+      fullText += finalClean;
+      const cleanJson = { choices: [{ delta: { content: finalClean } }] };
+      res.write(`data: ${JSON.stringify(cleanJson)}\n\n`);
+    }
+
+    if (userId && fullText) {
+       const userMsg = messages[messages.length - 1].content;
+       await pool.query("INSERT INTO chat_history (user_id, role, message) VALUES ($1, $2, $3)", [userId, 'user', userMsg]);
+       await pool.query("INSERT INTO chat_history (user_id, role, message) VALUES ($1, $2, $3)", [userId, 'ai', fullText]);
+    }
+
+    res.write("data: [DONE]\n\n");
     res.end();
   } catch (err) {
     console.error("[Chat API Error]:", err);
