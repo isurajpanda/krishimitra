@@ -9,6 +9,12 @@ export interface Message {
   time: string
 }
 
+export interface Conversation {
+  id: string
+  title: string
+  updated_at: string
+}
+
 function now() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
@@ -18,7 +24,11 @@ export function useChat() {
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamText, setStreamText] = useState("")
-  const [historyLoaded, setHistoryLoaded] = useState(false)
+  
+  // Conversation state
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [conversationsLoaded, setConversationsLoaded] = useState(false)
 
   // Context history for the API (only user and final assistant messages)
   const conversationHistory = useRef<{role: string, content: string}[]>([])
@@ -32,12 +42,29 @@ export function useChat() {
      return `Farmer Name: ${name || 'Unknown'}. Location: ${loc || 'Unknown'}. Farm Type: ${type || 'Unknown'}. Crops: ${crops || 'Unknown'}.`;
   };
 
-  const fetchHistory = useCallback(async () => {
+  const fetchConversations = useCallback(async () => {
     const userId = localStorage.getItem("userId")
-    if (!userId || historyLoaded) return
+    if (!userId || conversationsLoaded) return
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/chat-history/${userId}`)
+      const res = await fetch(`${API_BASE_URL}/auth/conversations/${userId}`)
+      if (res.ok) {
+        const data: Conversation[] = await res.json()
+        setConversations(data)
+        setConversationsLoaded(true)
+        // Auto-load most recent if available
+        if (data.length > 0 && !activeConversationId) {
+          loadConversation(data[0].id)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch conversations:", err)
+    }
+  }, [conversationsLoaded, activeConversationId])
+
+  const loadConversation = useCallback(async (conversationId: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/conversations/${conversationId}/messages`)
       if (res.ok) {
         const history: {role: "user"|"ai", content: string, timestamp: string}[] = await res.json()
         const formattedMessages: Message[] = history.map((m, i) => ({
@@ -49,15 +76,59 @@ export function useChat() {
         }))
         setMessages(formattedMessages)
         conversationHistory.current = history.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
-        setHistoryLoaded(true)
+        setActiveConversationId(conversationId)
       }
     } catch (err) {
-      console.error("Failed to fetch chat history:", err)
+      console.error("Failed to load conversation messages:", err)
     }
-  }, [historyLoaded])
+  }, [])
+
+  const startNewChat = useCallback(() => {
+    setActiveConversationId(null)
+    setMessages([])
+    conversationHistory.current = []
+    setInput("")
+    setIsStreaming(false)
+    setStreamText("")
+  }, [])
+
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/conversations/${conversationId}`, { method: 'DELETE' })
+      setConversations(prev => prev.filter(c => c.id !== conversationId))
+      if (activeConversationId === conversationId) {
+        startNewChat()
+      }
+    } catch (err) {
+      console.error("Failed to delete conversation:", err)
+    }
+  }, [activeConversationId, startNewChat])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isStreaming) return
+
+    const userId = localStorage.getItem("userId")
+    let currentConvId = activeConversationId
+
+    // Auto-create conversation if none exists
+    if (!currentConvId && userId) {
+      try {
+        const title = text.length > 30 ? text.substring(0, 30) + '...' : text
+        const res = await fetch(`${API_BASE_URL}/auth/conversations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, title })
+        })
+        if (res.ok) {
+          const newConv = await res.json()
+          currentConvId = newConv.id
+          setActiveConversationId(currentConvId)
+          setConversations(prev => [{ id: newConv.id, title: newConv.title, updated_at: new Date().toISOString() }, ...prev])
+        }
+      } catch (err) {
+        console.error("Failed to create conversation:", err)
+      }
+    }
 
     // 1. Add User Message to UI & Context
     const userMsg: Message = { id: Date.now().toString(), role: "user", type: "text", content: text, time: now() }
@@ -79,7 +150,8 @@ export function useChat() {
         body: JSON.stringify({
           messages: conversationHistory.current,
           userId: localStorage.getItem("userId"), // Send userId for storage
-          profileContext: _getProfileContext()
+          profileContext: _getProfileContext(),
+          conversationId: currentConvId
         })
       })
 
@@ -129,7 +201,7 @@ export function useChat() {
       setIsStreaming(false)
       setStreamText("")
     }
-  }, [isStreaming]) // include isStreaming to avoid double-sends
+  }, [isStreaming, activeConversationId, startNewChat]) // include isStreaming to avoid double-sends
 
   const sendVoiceDemo = useCallback(() => {
     if (isStreaming) return
@@ -143,8 +215,13 @@ export function useChat() {
     setInput,
     isStreaming,
     streamText,
+    conversations,
+    activeConversationId,
     sendMessage,
     sendVoiceDemo,
-    fetchHistory
+    fetchConversations,
+    loadConversation,
+    startNewChat,
+    deleteConversation
   }
 }

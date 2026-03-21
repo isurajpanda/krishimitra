@@ -22,7 +22,7 @@ const SYSTEM_PROMPT =
   'Respond directly without reasoning steps.'
 
 ai.post('/ai-chat', async (c) => {
-  const { messages, userId, profileContext } = await c.req.json()
+  const { messages, userId, profileContext, conversationId } = await c.req.json()
   if (!messages) return c.json({ error: 'Missing messages' }, 400)
 
   const openai = new OpenAI({
@@ -105,13 +105,17 @@ ai.post('/ai-chat', async (c) => {
         await stream.write(`data: ${JSON.stringify(cleanJson)}\n\n`)
       }
 
-      if (userId && fullText) {
+      if (userId && fullText && conversationId) {
         const userMsg = messages[messages.length - 1].content
-        await c.env.DB.prepare('INSERT INTO chat_history (user_id, role, message) VALUES (?, ?, ?)')
-          .bind(userId, 'user', userMsg)
+        await c.env.DB.prepare('INSERT INTO chat_history (user_id, conversation_id, role, message) VALUES (?, ?, ?, ?)')
+          .bind(userId, conversationId, 'user', userMsg)
           .run()
-        await c.env.DB.prepare('INSERT INTO chat_history (user_id, role, message) VALUES (?, ?, ?)')
-          .bind(userId, 'ai', fullText)
+        await c.env.DB.prepare('INSERT INTO chat_history (user_id, conversation_id, role, message) VALUES (?, ?, ?, ?)')
+          .bind(userId, conversationId, 'ai', fullText)
+          .run()
+        // Update the conversation's updated_at timestamp
+        await c.env.DB.prepare('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .bind(conversationId)
           .run()
       }
 

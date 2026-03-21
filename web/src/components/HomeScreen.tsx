@@ -1,8 +1,9 @@
-import { ArrowLeft, Mic, MessageSquare } from "lucide-react"
+import { ArrowLeft, Mic, MessageSquare, History } from "lucide-react"
 import { TopAppBar } from "@/components/TopAppBar"
 import { useState, useEffect } from "react"
 import { useChat } from "@/hooks/useChat"
 import { MessageList } from "./MessageList"
+import { ChatSidebar } from "./ChatSidebar"
 import { InputBar } from "./InputBar"
 import { cn } from "@/lib/utils"
 
@@ -14,11 +15,26 @@ interface HomeScreenProps {
 export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
   const userName = localStorage.getItem("userName") || "Farmer";
   const [isChatMode, setIsChatMode] = useState(false);
-  const { messages, input, setInput, isStreaming, streamText, sendMessage, fetchHistory } = useChat();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const { 
+    messages, 
+    input, 
+    setInput, 
+    isStreaming, 
+    streamText, 
+    sendMessage, 
+    fetchConversations,
+    conversations,
+    activeConversationId,
+    startNewChat,
+    loadConversation,
+    deleteConversation
+  } = useChat();
 
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    fetchConversations();
+  }, [fetchConversations]);
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden relative z-[65]">
@@ -30,12 +46,37 @@ export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
         title={<></>}
         subtitle={<></>}
         leftAction={
-          <button
-            onClick={() => isChatMode ? setIsChatMode(false) : onClose?.()}
-            className="w-10 h-10 shrink-0 rounded-full bg-surface-container border border-outline/50 flex flex-col items-center justify-center hover:bg-on-surface/10 transition-colors text-on-surface"
-          >
-            <ArrowLeft className="w-5 h-5 flex-shrink-0" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => isChatMode ? setIsChatMode(false) : onClose?.()}
+              className="w-10 h-10 shrink-0 rounded-full bg-surface-container border border-outline/50 flex flex-col items-center justify-center hover:bg-on-surface/10 transition-colors text-on-surface"
+            >
+              <ArrowLeft className="w-5 h-5 flex-shrink-0" />
+            </button>
+            
+            {isChatMode && (
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="w-10 h-10 shrink-0 rounded-full bg-surface-container border border-outline/50 flex flex-col items-center justify-center hover:bg-on-surface/10 transition-colors text-on-surface md:hidden"
+                aria-label="Toggle Chat History"
+              >
+                <div className="flex flex-col gap-[3px] items-center justify-center">
+                  <div className="w-[4px] h-[4px] rounded-full bg-on-surface/80" />
+                  <div className="w-[4px] h-[4px] rounded-full bg-on-surface/80" />
+                  <div className="w-[4px] h-[4px] rounded-full bg-on-surface/80" />
+                </div>
+              </button>
+            )}
+            {isChatMode && (
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="hidden md:flex w-10 h-10 shrink-0 rounded-full bg-surface-container border border-outline/50 flex-col items-center justify-center hover:bg-on-surface/10 transition-colors text-on-surface"
+                aria-label="Toggle Chat History"
+              >
+                <History className="w-5 h-5 flex-shrink-0" />
+              </button>
+            )}
+          </div>
         }
         actions={
           <div className="flex items-center gap-3">
@@ -54,8 +95,24 @@ export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
       {/* ── Spacer to push content below the fixed TopAppBar (≈72 px) ── */}
       <div className="h-[72px] shrink-0" />
 
+      {/* Chat Sidebar Panel */}
+      {isChatMode && (
+        <ChatSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          conversations={conversations}
+          activeConversationId={activeConversationId}
+          onSelectConversation={loadConversation}
+          onNewChat={startNewChat}
+          onDeleteConversation={deleteConversation}
+        />
+      )}
+
       {/* ── Scrollable content area ── fills remaining height above input bar */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className={cn(
+        "flex-1 min-h-0 overflow-y-auto overflow-x-hidden transition-all duration-300",
+        isSidebarOpen && window.innerWidth >= 768 ? "ml-[260px]" : "ml-0" 
+      )}>
         <div className={cn(
           "flex flex-col w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 transition-all duration-700",
           isChatMode ? "pt-4" : "pt-6 md:pt-10"
@@ -140,7 +197,10 @@ export function HomeScreen({ onStartVoice, onClose }: HomeScreenProps) {
       </div>
 
       {/* ── Sticky Input Bar — always pinned to the bottom of the screen ── */}
-      <div className="w-full shrink-0 bg-background border-t border-outline/30">
+      <div className={cn(
+        "w-full shrink-0 bg-background border-t border-outline/30 transition-all duration-300",
+        isSidebarOpen && window.innerWidth >= 768 ? "md:pl-[260px]" : ""
+      )}>
         {!isChatMode ? (
           /* "Ask anything" placeholder — tapping opens chat mode */
           <div

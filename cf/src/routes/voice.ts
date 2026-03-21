@@ -13,7 +13,6 @@ type Bindings = {
 
 const SYSTEM_PROMPT =
   'You are KrishiMitra, a friendly AI voice assistant for Indian farmers. You are operating in a LIVE VOICE CONVERSATION. ' +
-  "LANGUAGE: Auto-detect and respond in the user's language using native script only (no transliteration). Hindi → Devanagari, Odia → Odia script, etc. " +
   'VOICE STYLE: Natural, conversational, and speech-friendly. No markdown, bullets, emojis, or special characters. ' +
   'ENGAGEMENT & LENGTH: Since this is a voice call, keep your responses concise, punchy, and highly manageable. Avoid long monologues. Talk and engage directly with the farmer, show empathy for their issues, and proactively ask short follow-up questions to understand their situation better. ' +
   'EXPERTISE: Crop advice, soil health, fertilizers, pesticides, weather, government schemes, market prices. Keep advice practical, local, and simple. ' +
@@ -42,6 +41,30 @@ async function connectWS(url: string, headers: Record<string, string>): Promise<
   return ws
 }
 
+// ─── TTS language config helper ───────────────────────────────────────────
+// Only English gets an explicit target_language_code ('en-IN').
+// All other languages (Hindi, Odia, etc.) omit the field — TTS auto-handles them.
+function _getTTSConfig(detectedLang: string) {
+  if (detectedLang === 'en-IN' || detectedLang.startsWith('en')) {
+    return {
+      model: 'bulbul:v3',
+      target_language_code: 'en-IN',
+      speaker: 'shubh',
+      pace: 1.1,
+      speech_sample_rate: '24000',
+      output_audio_codec: 'linear16',
+    }
+  }
+  // No target_language_code for non-English — let TTS infer from audio
+  return {
+    model: 'bulbul:v3',
+    speaker: 'shubh',
+    pace: 1.1,
+    speech_sample_rate: '24000',
+    output_audio_codec: 'linear16',
+  }
+}
+
 export class VoiceSession extends DurableObject<Bindings> {
   private browserWs: WebSocket | null = null
   private ip: string = 'unknown'
@@ -60,6 +83,7 @@ export class VoiceSession extends DurableObject<Bindings> {
   private sessionId = Math.random().toString(36).substring(7)
   private _isLLMRunning = false
   private vadAutoStopTimer: ReturnType<typeof setTimeout> | null = null
+  private detectedLanguage: string = ''  // empty = unknown, will be set from first STT response
 
   constructor(state: DurableObjectState, env: Bindings) {
     super(state, env)
@@ -164,14 +188,7 @@ export class VoiceSession extends DurableObject<Bindings> {
       // speech_sample_rate MUST be a string (spec enum: '8000'|'16000'|'22050'|'24000')
       ws.send(JSON.stringify({
         type: 'config',
-        data: {
-          model: 'bulbul:v3',
-          target_language_code: 'hi-IN',
-          speaker: 'shubh',
-          pace: 1.1,
-          speech_sample_rate: '24000',   // string, not number!
-          output_audio_codec: 'linear16',
-        },
+        data: _getTTSConfig(this.detectedLanguage),
       }))
 
       this.ttsReady = true
@@ -237,6 +254,13 @@ export class VoiceSession extends DurableObject<Bindings> {
 
         if (msg.type === 'data' && msg.data?.transcript) {
           const incoming = msg.data.transcript.trim()
+
+          // Capture the language code from STT on first detection
+          if (msg.data.language_code && !this.detectedLanguage) {
+            this.detectedLanguage = msg.data.language_code
+            this._log('info', `[STT] Detected language: ${this.detectedLanguage}`)
+            this._sendToBrowser({ type: 'language_detected', language: this.detectedLanguage })
+          }
 
           // Detect when Sarvam resets its buffer after a micro-pause
           if (this.currentInterim && incoming) {
@@ -336,10 +360,13 @@ export class VoiceSession extends DurableObject<Bindings> {
         this.finalizedTranscripts = ''
         this.currentInterim = ''
         this.sttAudioBuffer = []
+        // Reset detected language each turn so TTS config reconfigures per turn
+        this.detectedLanguage = ''
         if (this.vadAutoStopTimer !== null) {
           clearTimeout(this.vadAutoStopTimer)
           this.vadAutoStopTimer = null
         }
+        // Seed conversation history with greeting on very first turn
         if (msg.greetingText && this.history.length === 0) {
           this.history.push({ role: 'user', content: 'hi' })
           this.history.push({ role: 'assistant', content: msg.greetingText })
@@ -430,18 +457,10 @@ export class VoiceSession extends DurableObject<Bindings> {
     if (!this.ttsWs || !this.ttsReady) {
       await this._initTTS()
     } else {
-      // Reset TTS for new turn
+      // Reconfigure TTS for new turn with detected language
       try { this.ttsWs.send(JSON.stringify({
           type: 'config',
-          data: {
-            model: 'bulbul:v3',
-            target_language_code: 'hi-IN',
-            speaker: 'shubh',
-            pace: 1.1,
-            speech_sample_rate: '24000',  // string per spec
-            output_audio_codec: 'linear16',
-            send_completion_event: true,
-          },
+          data: { ...(_getTTSConfig(this.detectedLanguage)), send_completion_event: true },
         })) } catch {}
     }
 
@@ -476,14 +495,21 @@ export class VoiceSession extends DurableObject<Bindings> {
       }
       // ── RAG end ────────────────────────────────────────────────────────────────
 
+      // Build language enforcement instruction based on detected language
+      const langInstruction = this.detectedLanguage
+        ? this.detectedLanguage.startsWith('en')
+          ? ' CRITICAL LANGUAGE RULE: The user is speaking English. You MUST respond ONLY in English. Do NOT use any Hindi, Odia, or other language words.' 
+          : ` CRITICAL LANGUAGE RULE: The user is speaking in language code "${this.detectedLanguage}". You MUST respond in that exact same language using its native script only. Do NOT use English or any other language.`
+        : ' CRITICAL LANGUAGE RULE: Match the exact language the user speaks. Use native script only. No transliteration.'
+
       const completion = await openai.chat.completions.create({
         model: 'openai/gpt-oss-120b',
         messages: [
           {
             role: 'system',
             content: this.profileContext
-              ? `${SYSTEM_PROMPT} USER PROFILE: ${this.profileContext}${ragContext}`
-              : `${SYSTEM_PROMPT}${ragContext}`,
+              ? `${SYSTEM_PROMPT}${langInstruction} USER PROFILE: ${this.profileContext}${ragContext}`
+              : `${SYSTEM_PROMPT}${langInstruction}${ragContext}`,
           },
           ...this.history.slice(-10),
           { role: 'user', content: transcript },

@@ -144,6 +144,7 @@ auth.patch('/auth/profile/:userId', async (c) => {
   }
 })
 
+// ─── Chat History (legacy — all messages flat) ─────────────────────────────
 auth.get('/auth/chat-history/:userId', async (c) => {
   const userId = c.req.param('userId')
   try {
@@ -159,4 +160,93 @@ auth.get('/auth/chat-history/:userId', async (c) => {
   }
 })
 
+// ─── Conversations ─────────────────────────────────────────────────────────
+
+// List all conversations for a user
+auth.get('/auth/conversations/:userId', async (c) => {
+  const userId = c.req.param('userId')
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT id, title, created_at, updated_at FROM conversations WHERE user_id = ? ORDER BY updated_at DESC LIMIT 50'
+    )
+      .bind(userId)
+      .all()
+    return c.json(results)
+  } catch (err) {
+    console.error('[Conversations List Error]:', err)
+    return c.json({ error: 'Failed to fetch conversations' }, 500)
+  }
+})
+
+// Create a new conversation
+auth.post('/auth/conversations', async (c) => {
+  const { userId, title } = await c.req.json()
+  if (!userId) return c.json({ error: 'Missing userId' }, 400)
+
+  try {
+    const id = crypto.randomUUID()
+    const conversationTitle = title || 'New Chat'
+    await c.env.DB.prepare(
+      'INSERT INTO conversations (id, user_id, title) VALUES (?, ?, ?)'
+    )
+      .bind(id, userId, conversationTitle)
+      .run()
+    return c.json({ id, title: conversationTitle })
+  } catch (err) {
+    console.error('[Create Conversation Error]:', err)
+    return c.json({ error: 'Failed to create conversation' }, 500)
+  }
+})
+
+// Get messages for a specific conversation
+auth.get('/auth/conversations/:conversationId/messages', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT role, message as content, timestamp FROM chat_history WHERE conversation_id = ? ORDER BY timestamp ASC'
+    )
+      .bind(conversationId)
+      .all()
+    return c.json(results)
+  } catch (err) {
+    console.error('[Conversation Messages Error]:', err)
+    return c.json({ error: 'Failed to fetch messages' }, 500)
+  }
+})
+
+// Rename a conversation
+auth.patch('/auth/conversations/:conversationId', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  const { title } = await c.req.json()
+  if (!title) return c.json({ error: 'Missing title' }, 400)
+
+  try {
+    await c.env.DB.prepare(
+      'UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    )
+      .bind(title, conversationId)
+      .run()
+    return c.json({ success: true })
+  } catch (err) {
+    console.error('[Rename Conversation Error]:', err)
+    return c.json({ error: 'Failed to rename conversation' }, 500)
+  }
+})
+
+// Delete a conversation (cascades to chat_history via FK)
+auth.delete('/auth/conversations/:conversationId', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  try {
+    await c.env.DB.prepare('DELETE FROM conversations WHERE id = ?')
+      .bind(conversationId)
+      .run()
+    return c.json({ success: true })
+  } catch (err) {
+    console.error('[Delete Conversation Error]:', err)
+    return c.json({ error: 'Failed to delete conversation' }, 500)
+  }
+})
+
 export default auth
+
+
