@@ -3,10 +3,12 @@ const { Pool } = pkg;
 
 const useExternalDB = !!process.env.DATABASE_URL;
 
+const isInternal = process.env.DATABASE_URL?.includes('.internal');
+
 const dbConfig = useExternalDB 
   ? { 
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+      ...(isInternal ? {} : { ssl: { rejectUnauthorized: false } })
     }
   : {
       user: "postgres",
