@@ -4,7 +4,10 @@ const { Pool } = pkg;
 const useExternalDB = !!process.env.DATABASE_URL;
 
 const dbConfig = useExternalDB 
-  ? { connectionString: process.env.DATABASE_URL }
+  ? { 
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    }
   : {
       user: "postgres",
       host: "localhost",
