@@ -52,18 +52,18 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-const isProd = !!process.env.RAILWAY_ENVIRONMENT_NAME || !!process.env.DATABASE_URL;
-
 let server;
-if (isProd) {
-  server = http.createServer(app);
-} else {
-  const certsPath = path.join(__dirname, "..", "certs");
+const certsPath = path.join(__dirname, "..", "certs");
+const keyPath = path.join(certsPath, "key.pem");
+
+if (fs.existsSync(keyPath)) {
   const options = {
-    key: fs.readFileSync(path.join(certsPath, "key.pem")),
+    key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(path.join(certsPath, "cert.pem")),
   };
   server = https.createServer(options, app);
+} else {
+  server = http.createServer(app);
 }
 const wss = new WebSocketServer({ server, path: "/api/v0/voice" });
 
