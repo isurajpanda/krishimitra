@@ -36,6 +36,8 @@ const dbConfig = {
   database: "postgres",
   password: "password",
   port: 5432,
+  max: 20, // Increase pool size
+  idleTimeoutMillis: 30000,
 };
 
 let pool = new Pool(dbConfig);

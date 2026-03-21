@@ -220,8 +220,10 @@ export function useVoiceChat() {
       const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
       const channelData = audioBuffer.getChannelData(0);
       const dataView = new DataView(buffer);
+      const gain = 3.5;
       for (let i = 0; i < numSamples; i++) {
-        channelData[i] = dataView.getInt16(i * 2, true) / 32768.0;
+        const floatSample = dataView.getInt16(i * 2, true) / 32768.0;
+        channelData[i] = Math.max(-1, Math.min(1, floatSample * gain));
       }
 
       if (!prebufferStartedRef.current) {

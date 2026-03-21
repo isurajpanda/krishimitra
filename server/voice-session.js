@@ -35,6 +35,8 @@ export class VoiceSession {
     this.sttAudioBuffer = [];
     this.history = []; // Persists for the life of the voice session
     this._isLLMRunning = false;
+    this.sessionId = Math.random().toString(36).substring(7);
+    console.log(`[Session:${this.sessionId}] Created new voice session`);
   }
 
   // ─── TTS WebSocket ────────────────────────────────────────────────────────
@@ -47,7 +49,7 @@ export class VoiceSession {
     });
 
     this.ttsWs.on("open", () => {
-      console.log("[TTS] Connected");
+      console.log(`[TTS:${this.sessionId}] Connected`);
       this.ttsWs.send(
         JSON.stringify({
           type: "config",
@@ -74,7 +76,7 @@ export class VoiceSession {
         return;
       }
 
-      console.log("[TTS] msg type:", msg.type);
+      console.log(`[TTS:${this.sessionId}] msg type:`, msg.type);
 
       if (msg.type === "audio" && msg.data?.audio) {
         this._sendToBrowser({
@@ -85,17 +87,17 @@ export class VoiceSession {
       } else if ((msg.type === "events" || msg.type === "event") && (msg.data?.event_type === "END_OF_AUDIO" || msg.data?.event_type === "final")) {
         this._sendToBrowser({ type: "tts_done" });
       } else if (msg.type === "error") {
-        console.error("[TTS] Remote error:", JSON.stringify(msg.data));
+        console.error(`[TTS:${this.sessionId}] Remote error:`, JSON.stringify(msg.data));
         this._sendToBrowser({ type: "tts_done" }); // unblock client
       }
     });
 
     this.ttsWs.on("error", (err) => {
-      console.error("[TTS] WS error:", err.message);
+      console.error(`[TTS:${this.sessionId}] WS error:`, err.message);
     });
 
     this.ttsWs.on("close", (code, reason) => {
-      console.log(`[TTS] Disconnected (${code}) ${reason}`);
+      console.log(`[TTS:${this.sessionId}] Disconnected (${code}) ${reason}`);
       this.ttsReady = false;
       this.ttsWs = null;
     });
@@ -142,16 +144,16 @@ export class VoiceSession {
         break;
 
       default:
-        console.warn("[Session] Unknown message type:", msg.type);
+        console.warn(`[Session:${this.sessionId}] Unknown message type:`, msg.type);
     }
   }
 
   // ─── STT WebSocket ────────────────────────────────────────────────────────
 
   _setupSTT() {
-    console.log("[STT] Starting WS setup...");
+    console.log(`[STT:${this.sessionId}] Starting WS setup...`);
     if (this.sttWs?.readyState === WebSocket.OPEN) {
-       console.log("[STT] WS already open");
+       console.log(`[STT:${this.sessionId}] WS already open`);
        return;
     }
     const url = "wss://api.sarvam.ai/speech-to-text/ws?language-code=unknown&model=saaras:v3&mode=codemix&input_audio_codec=pcm_s16le&vad_signals=true";
@@ -161,7 +163,7 @@ export class VoiceSession {
     });
 
     this.sttWs.on("open", () => {
-      console.log("[STT] Connected");
+      console.log(`[STT:${this.sessionId}] Connected`);
       this.sttAudioBuffer.forEach((msg) => {
          if (this.sttWs.readyState === WebSocket.OPEN) {
             this.sttWs.send(JSON.stringify({ audio: { data: msg.audio, sample_rate: "16000", encoding: "audio/wav" } }));
@@ -193,7 +195,7 @@ export class VoiceSession {
          const displayTranscript = (this.finalizedTranscripts + " " + this.currentInterim).trim();
 
          if (this.latestTranscript !== displayTranscript) {
-             console.log(`[STT] Interim: "${displayTranscript}"`);
+             console.log(`[STT:${this.sessionId}] Interim: "${displayTranscript}"`);
          }
          this.latestTranscript = displayTranscript;
          this._sendToBrowser({ type: "stt_interim", text: displayTranscript });
@@ -211,20 +213,21 @@ export class VoiceSession {
          }, 1800);
 
       } else if (msg.type === "events" && msg.data?.event_type === "END_SPEECH") {
-         console.log(`[STT] VAD END_SPEECH detected. Current Transcript: "${this.latestTranscript}"`);
+         console.log(`[STT:${this.sessionId}] VAD END_SPEECH detected. Current Transcript: "${this.latestTranscript}"`);
          this._triggerSttStop();
       } else if (msg.type === "error") {
-         console.error("[STT] Remote error:", msg.data);
+         console.error(`[STT:${this.sessionId}] Remote error:`, msg.data);
       }
     });
 
     this.sttWs.on("error", (err) => {
-      console.error("[STT] WS error:", err.message);
+      console.error(`[STT:${this.sessionId}] WS error:`, err.message);
     });
   }
 
   // ─── STT Helper ───────────────────────────────────────────────────────────
   _triggerSttStop() {
+    console.log(`[STT:${this.sessionId}] _triggerSttStop invoked`);
     clearTimeout(this.vadAutoStopTimer);
     if (!this.latestTranscript && !this.finalizedTranscripts) return; // Prevent double trigger
     
@@ -254,12 +257,12 @@ export class VoiceSession {
 
   async _runLLM(transcript) {
     if (this._isLLMRunning) {
-       console.log("[LLM] Ignored trigger: LLM already running.");
+       console.log(`[LLM:${this.sessionId}] Ignored trigger: LLM already running.`);
        return;
     }
     this._isLLMRunning = true;
 
-    console.log(`[LLM] Starting generation for: "${transcript}"`);
+    console.log(`[LLM:${this.sessionId}] Starting generation for: "${transcript}"`);
     this._sendToBrowser({ type: "llm_start" });
 
     const startTime = Date.now();
@@ -284,7 +287,7 @@ export class VoiceSession {
       }));
     }
 
-    console.log(`[LLM] Sending ${this.history.length / 2} turns of history + current prompt.`);
+    console.log(`[LLM:${this.sessionId}] Sending ${this.history.length / 2} turns of history + current prompt.`);
     // console.log("[LLM] Messages:", JSON.stringify(this.history.slice(-10), null, 2));
 
     try {
@@ -308,7 +311,7 @@ export class VoiceSession {
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error(`[LLM] API error (${res.status}):`, errText);
+        console.error(`[LLM:${this.sessionId}] API error (${res.status}):`, errText);
         this._sendToBrowser({ type: "error", message: "LLM API error: " + errText });
         return;
       }
@@ -339,7 +342,7 @@ export class VoiceSession {
 
             if (!firstTokenTime) {
                firstTokenTime = Date.now();
-               console.log(`[LLM] First token latency: ${firstTokenTime - startTime}ms`);
+               console.log(`[LLM:${this.sessionId}] First token latency: ${firstTokenTime - startTime}ms`);
             }
 
             fullText += token;
@@ -400,7 +403,7 @@ export class VoiceSession {
 
       this._sendToBrowser({ type: "llm_done" });
     } catch (err) {
-      console.error("[LLM] Fatal Error:", err.message, err.stack);
+      console.error(`[LLM:${this.sessionId}] Fatal Error:`, err.message, err.stack);
       this._sendToBrowser({ type: "error", message: err.message });
     } finally {
       this._isLLMRunning = false;
@@ -412,10 +415,10 @@ export class VoiceSession {
   _sendToTTS(text) {
     if (!text.trim()) return;
     if (this.ttsReady && this.ttsWs?.readyState === WebSocket.OPEN) {
-      console.log(`[TTS] Sending to TTS: "${text.substring(0, 15)}..."`);
+      console.log(`[TTS:${this.sessionId}] Sending to TTS: "${text.substring(0, 15)}..."`);
       this.ttsWs.send(JSON.stringify({ type: "text", data: { text } }));
     } else {
-      console.log(`[TTS] Queuing for TTS: "${text.substring(0, 15)}..."`);
+      console.log(`[TTS:${this.sessionId}] Queuing for TTS: "${text.substring(0, 15)}..."`);
       this.ttsQueue.push(text);
       if (!this.ttsWs || this.ttsWs.readyState === WebSocket.CLOSED) {
          this._setupTTS();
@@ -430,6 +433,7 @@ export class VoiceSession {
   }
 
   destroy() {
+    console.log(`[Session:${this.sessionId}] Destroying session`);
     if (this.ttsWs?.readyState === WebSocket.OPEN) this.ttsWs.close();
     if (this.sttWs?.readyState === WebSocket.OPEN) this.sttWs.close();
   }
