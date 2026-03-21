@@ -1,5 +1,6 @@
 import "dotenv/config";
 import https from "https";
+import http from "http";
 import express from "express";
 import cors from "cors";
 import fs from "fs";
@@ -51,13 +52,19 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-const certsPath = path.join(__dirname, "..", "certs");
-const options = {
-  key: fs.readFileSync(path.join(certsPath, "key.pem")),
-  cert: fs.readFileSync(path.join(certsPath, "cert.pem")),
-};
+const isProd = !!process.env.RAILWAY_ENVIRONMENT_NAME || !!process.env.DATABASE_URL;
 
-const server = https.createServer(options, app);
+let server;
+if (isProd) {
+  server = http.createServer(app);
+} else {
+  const certsPath = path.join(__dirname, "..", "certs");
+  const options = {
+    key: fs.readFileSync(path.join(certsPath, "key.pem")),
+    cert: fs.readFileSync(path.join(certsPath, "cert.pem")),
+  };
+  server = https.createServer(options, app);
+}
 const wss = new WebSocketServer({ server, path: "/api/v0/voice" });
 
 wss.on("connection", (browserWs, req) => {
@@ -69,5 +76,6 @@ wss.on("connection", (browserWs, req) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🚀 KrishiMitra v0 running at https://10.254.238.20:${PORT}`);
+  const protocol = isProd ? "http" : "https";
+  console.log(`\n🚀 KrishiMitra Backend running at ${protocol}://localhost:${PORT}`);
 });

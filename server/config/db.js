@@ -1,37 +1,47 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
-const dbConfig = {
-  user: "postgres",
-  host: "localhost",
-  database: "postgres",
-  password: "password",
-  port: 5432,
-  max: 20, // Increase pool size
-  idleTimeoutMillis: 30000,
-};
+const useExternalDB = !!process.env.DATABASE_URL;
+
+const dbConfig = useExternalDB 
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      user: "postgres",
+      host: "localhost",
+      database: "postgres",
+      password: "password",
+      port: 5432,
+      max: 20, // Increase pool size
+      idleTimeoutMillis: 30000,
+    };
 
 let pool = new Pool(dbConfig);
 
 // Initialize database
 async function initDb() {
   try {
+    let finalClient;
     let client = await pool.connect();
-    console.log("[DB] Connected to PostgreSQL (default)");
+    console.log(`[DB] Connected to PostgreSQL (${useExternalDB ? "Railway" : "Local fallback"})`);
 
-    // Ensure krishimitra database exists
-    const dbName = "krishimitra";
-    const dbCheck = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
-    if (dbCheck.rowCount === 0) {
-      console.log(`[DB] Creating database "${dbName}"...`);
-      await client.query(`CREATE DATABASE ${dbName}`);
+    if (!useExternalDB) {
+      // Ensure krishimitra database exists locally
+      const dbName = "krishimitra";
+      const dbCheck = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
+      if (dbCheck.rowCount === 0) {
+        console.log(`[DB] Creating database "${dbName}"...`);
+        await client.query(`CREATE DATABASE ${dbName}`);
+      }
+      client.release();
+      await pool.end();
+
+      // Reconnect to krishimitra
+      pool = new Pool({ ...dbConfig, database: dbName });
+      finalClient = await pool.connect();
+    } else {
+      // Railway DB is already created and passed in DATABASE_URL
+      finalClient = client;
     }
-    client.release();
-    await pool.end();
-
-    // Reconnect to krishimitra
-    pool = new Pool({ ...dbConfig, database: dbName });
-    const finalClient = await pool.connect();
     
     // FORCED RESET IF SCHEMA IS OLD (Dev phase)
     const checkEmail = await finalClient.query(`
@@ -69,6 +79,7 @@ async function initDb() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    
     // Add new columns if they don't exist (for existing DBs)
     const newCols = [
       { name: 'lon', type: 'DOUBLE PRECISION' },
